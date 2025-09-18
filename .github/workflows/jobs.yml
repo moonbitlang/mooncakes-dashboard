@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 18 * * *" # 02:00 AM UTC+8
+
+env:
+  GITHUB_ACTION_RUN_ID: ${{ github.run_id }}
+  GITHUB_ACTION_RUN_NUMBER: ${{ github.run_number }}
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+
+jobs:
+  collect-data:
+    needs: check-repos
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - platform: macos-latest
+            name: mac
+          - platform: ubuntu-latest
+            name: linux
+          - platform: windows-latest
+            name: windows
+        channel:
+          - stable
+          - nightly
+    runs-on: ${{ matrix.os.platform }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: install MoonBit
+        run: |
+          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
+          echo "$HOME/.moon/bin" >> $GITHUB_PATH
+        with:
+          shell: bash
+
+      - name: Setup MSVC
+        if: ${{ matrix.os.platform == 'windows-latest' }}
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Version
+        run: moon version --all
+
+      - name: moon update
+        run: |
+          moon update
+
+      - name: Build
+        run: |
+          deno run -A deno/src/main.ts --repos repos.yml --exclude exclude.yml --channel ${{ matrix.channel }}
+
+      - name: Upload data
+        uses: actions/upload-artifact@v4
+        with:
+          name: data-${{ matrix.os.name }}-${{ matrix.channel }}
+          path: './webapp/public/${{ matrix.os.name }}/'
+          if-no-files-found: error
+

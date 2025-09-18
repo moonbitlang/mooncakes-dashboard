@@ -1,0 +1,36 @@
+{
+  "tasks": {
+    "run": "deno run -A src/main.ts",
+    "dev": "deno run --watch -A src/main.ts",
+    "check": "deno check src/main.ts",
+    "fmt": "deno fmt",
+    "lint": "deno lint"
+  },
+  "imports": {
+    "@std/json": "jsr:@std/json@^1.0.2",
+    "@std/path": "jsr:@std/path@^1.0.0",
+    "@std/fs": "jsr:@std/fs@^1.0.19",
+    "@std/cli": "jsr:@std/cli@^1.0.0",
+    "@std/datetime": "jsr:@std/datetime@^0.225.0",
+    "@std/semver": "jsr:@std/semver@^1.0.5",
+    "@std/streams": "jsr:@std/streams@^1.0.12",
+    "@std/yaml": "jsr:@std/yaml@^1.0.9",
+    "zod": "npm:zod@^4.1.9"
+  },
+  "fmt": {
+    "useTabs": false,
+    "lineWidth": 120,
+    "indentWidth": 2,
+    "singleQuote": true
+  },
+  "lint": {
+    "rules": {
+      "tags": ["recommended"],
+      "exclude": ["no-explicit-any"]
+    }
+  },
+  "compilerOptions": {
+    "strict": true,
+    "lib": ["dom", "esnext"]
+  }
+}

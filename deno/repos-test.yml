@@ -1,0 +1,20 @@
+# yaml-language-server: $schema=repos.schema.json
+github-repos:
+  - name: moonlex-for-TAPL
+    link: https://github.com/moonbitlang/moonlex-old
+    branch: master
+    running_os:
+      - linux
+      - macos
+mooncakes:
+  - name: Milky2018/selene
+    version: 0.13.4
+  - name: AXiX-official/xxhash
+    version: 0.1.0
+  - name: amor2025/biginteger # test does not work
+    version: 0.1.0
+  - name: BigOrangeQWQ/wit-wasi-io # has limited backend
+    version: 0.2.6
+    running_backend:
+      - wasm
+      - wasm-gc
