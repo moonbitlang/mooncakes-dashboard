@@ -31,10 +31,7 @@ jobs:
           - nightly
     runs-on: ${{ matrix.os.platform }}
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: main
-          fetch-depth: 1
+      - uses: actions/checkout@v5
 
       - uses: denoland/setup-deno@v2
         with:
