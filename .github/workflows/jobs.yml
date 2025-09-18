@@ -45,8 +45,7 @@ jobs:
         run: |
           curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
           echo "$HOME/.moon/bin" >> $GITHUB_PATH
-        with:
-          shell: bash
+        shell: bash
 
       - name: Setup MSVC
         if: ${{ matrix.os.platform == 'windows-latest' }}
