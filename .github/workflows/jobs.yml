@@ -16,7 +16,6 @@ permissions:
 
 jobs:
   collect-data:
-    needs: check-repos
     strategy:
       fail-fast: false
       matrix:
