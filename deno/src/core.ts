@@ -17,7 +17,7 @@ import {
   type ToolChainVersion,
 } from './types.ts';
 import { StatSubcommand } from './cli.ts';
-import { getMooncVersion, getMoonVersion } from './moon.ts';
+import { getMooncVersion, getMoonVersion, runMoon } from './moon.ts';
 import { gitCloneTo } from './git.ts';
 import { downloadTo, getAllMooncakes } from './mooncakesio.ts';
 import { getExcludeConfig, getReposConfig } from './utils.ts';
@@ -40,47 +40,6 @@ export class StatError extends Error {
   constructor(message: string, public originalError?: Error) {
     super(message);
     this.name = 'StatError';
-  }
-}
-
-export async function runMoon(
-  workdir: string,
-  source: Mooncake,
-  args: string[],
-): Promise<CommandOutput> {
-  const start = Date.now();
-  console.info(`RUN moon ${args.join(' ')} for ${JSON.stringify(source)}`);
-
-  try {
-    const signal = new AbortController();
-    const process = new Deno.Command('moon', { args, cwd: workdir, signal: signal.signal });
-    const timeout = setTimeout(() => {
-      signal.abort();
-    }, 60000); // 1 minute timeout
-
-    const { code, stdout, stderr } = await process.output();
-    clearTimeout(timeout);
-
-    const stdoutStr = new TextDecoder().decode(stdout);
-    const stderrStr = new TextDecoder().decode(stderr);
-    const elapsed = Date.now() - start;
-    const success = code === 0;
-
-    console.info(
-      `moon ${args.join(' ')}, elapsed: ${elapsed}ms, ${success ? 'success' : 'failed'}`,
-    );
-
-    return {
-      duration: elapsed,
-      stdout: stdoutStr,
-      stderr: stderrStr,
-      success,
-    };
-  } catch (error) {
-    throw new RunMoonError(
-      `Failed to run moon command: ${args.join(' ')}`,
-      error as Error,
-    );
   }
 }
 
@@ -168,7 +127,8 @@ export async function statMooncake(
   backend: Backend,
 ): Promise<Result> {
   try {
-    const result = await runMoon(workdir, source, [
+    const startTime = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
+    const result = await runMoon(workdir, [
       command,
       '-q',
       '--target',
@@ -176,9 +136,6 @@ export async function statMooncake(
       ...(command === 'test' ? ['--build-only'] : []),
     ]);
     const status = result.success ? Status.Success : Status.Failure;
-
-    const now = new Date();
-    const startTime = now.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
 
     return {
       status,
@@ -188,6 +145,7 @@ export async function statMooncake(
       stderr: result.stderr,
     };
   } catch (error) {
+    console.error(`RUN moon ${command} for ${JSON.stringify(source)}`, error);
     const now = new Date();
     const startTime = now.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
 
