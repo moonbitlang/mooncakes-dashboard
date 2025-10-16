@@ -1,6 +1,6 @@
 // 主入口文件，对应 Rust 版本中的 main.rs
-import { parseCliArgs } from './cli.ts';
-import { stat } from './core.ts';
+import { parseCliArgs } from './lib/cli.ts';
+import { stat } from './lib/core.ts';
 import { JsonStringifyStream } from '@std/json';
 
 async function main(): Promise<void> {

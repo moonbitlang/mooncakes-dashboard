@@ -1,7 +1,7 @@
 import { parseArgs } from '@std/cli/parse-args';
 import { JsonParseStream } from '@std/json';
 import { TextLineStream } from '@std/streams';
-import { BuildResult, Status } from './types.ts';
+import { BuildResult, Status } from './lib/types.ts';
 
 const file = parseArgs(Deno.args)._[0];
 

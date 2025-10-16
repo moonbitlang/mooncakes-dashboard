@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=deno/exclude.schema.json
+# yaml-language-server: $schema=deno/resources/exclude.schema.json
 exclude:
   # out of maintenance
   - colmugx/reader

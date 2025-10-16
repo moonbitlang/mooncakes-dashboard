@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=deno/repos.schema.json
+# yaml-language-server: $schema=deno/resources/repos.schema.json
 github-repos:
   - name: moonlex-for-TAPL
     link: https://github.com/moonbitlang/moonlex-old
