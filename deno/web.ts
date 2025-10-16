@@ -1,5 +1,3 @@
-// @ts-check
-
 import { useState } from 'https://esm.sh/preact/hooks';
 import { html, render } from 'https://esm.sh/htm/preact';
 import { BlobWriter, HttpReader, TextReader, ZipWriter } from 'https://unpkg.com/@zip.js/zip.js/index.js';

@@ -1,8 +1,7 @@
 {
   "tasks": {
-    "run": "deno run -A src/main.ts",
-    "dev": "deno run --watch -A src/main.ts",
-    "check": "deno check src/main.ts",
+    "dev": "deno bundle web.ts -o web.js --watch",
+    "check": "deno check",
     "fmt": "deno fmt",
     "lint": "deno lint"
   },
