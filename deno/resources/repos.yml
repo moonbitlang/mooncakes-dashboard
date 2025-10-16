@@ -1,0 +1,191 @@
+# yaml-language-server: $schema=repos.schema.json
+github-repos:
+  - name: moonlex-for-TAPL
+    link: https://github.com/moonbitlang/moonlex-old
+    branch: master
+    running_os:
+      - linux
+      - macos
+  - name: pku-dppl/TAPL-in-MoonBit
+    link: https://github.com/pku-dppl/TAPL-in-MoonBit
+    branch: main
+    running_os:
+      - linux
+      - macos
+  - name: oboard/mio
+    link: https://github.com/oboard/mio
+    branch: main
+    running_backend:
+      - js
+  - name: AdUhTkJm/moonc
+    link: https://github.com/AdUhTkJm/moonc
+    branch: main
+  - name: WebGPU-Art/quaternion
+    link: https://github.com/WebGPU-Art/quaternion
+    branch: main
+  - name: zxch3n/moon-expect
+    link: https://github.com/zxch3n/moon-expect
+    branch: main
+  - name: moonbit-community/linalg
+    link: https://github.com/moonbit-community/linalg
+    branch: main
+  - name: FlyCloudC/miniKanren
+    link: https://github.com/FlyCloudC/miniKanren
+    branch: main
+  - name: moonbitlang/core
+    link: https://github.com/moonbitlang/core
+    branch: main
+  - name: moonbitlang/x
+    link: https://github.com/moonbitlang/x
+    branch: main
+  - name: moonbitlang/quickcheck
+    link: https://github.com/moonbitlang/quickcheck
+    branch: main
+  - name: moonbit-community/XMLParser
+    link: https://github.com/moonbit-community/XMLParser
+    branch: main
+  - name: moonbitlang/yacc
+    link: https://github.com/moonbitlang/moonyacc
+    branch: master
+    running_os:
+      - linux
+      - macos
+  - name: Luna-Flow/linear-algebra
+    link: https://github.com/Luna-Flow/linear-algebra
+    branch: main
+  - name: moonbit-community/dotenv-mbt
+    link: https://github.com/moonbit-community/dotenv-mbt
+    branch: main
+  - name: moonbit-community/cmark
+    link: https://github.com/moonbit-community/cmark
+    branch: main
+  - name: gmlewis/moonbit-fonts
+    link: https://github.com/gmlewis/moonbit-fonts
+    branch: master
+  - name: zhuguiyuan/MoonBit-EDA-Router
+    link: https://github.com/zhuguiyuan/MoonBit-EDA-Router
+    branch: main
+  - name: moonbit-community/pandas
+    link: https://github.com/moonbit-community/pandas
+    branch: main
+  # - name: moonbit-community/wasmSID
+  #   link: https://github.com/moonbit-community/wasmSID
+  #   branch: main
+  - name: moonbitlang/minimoonbit-public
+    link: https://github.com/moonbitlang/minimoonbit-public
+    branch: main
+  - name: moonbit-community/NyaCSV
+    link: https://github.com/moonbit-community/NyaCSV
+    branch: main
+  - name: moonbit-community/NyaSearch
+    link: https://github.com/moonbit-community/NyaSearch
+    branch: main
+  - name: moonbit-community/sw-ini
+    link: https://github.com/moonbit-community/sw-ini
+    branch: main
+mooncakes:
+  - name: BigOrangeQWQ/wasi-cli
+    version: 0.2.6
+    running_backend:
+      - wasm
+      - wasm-gc
+  - name: BigOrangeQWQ/wasi-clocks
+    version: 0.2.6
+    running_backend:
+      - wasm
+      - wasm-gc
+  - name: BigOrangeQWQ/wasi-filesystem
+    version: 0.2.6
+    running_backend:
+      - wasm
+      - wasm-gc
+  - name: BigOrangeQWQ/wasi-io
+    version: 0.2.6
+    running_backend:
+      - wasm
+      - wasm-gc
+  - name: BigOrangeQWQ/wasi-random
+    version: 0.2.6
+    running_backend:
+      - wasm
+      - wasm-gc
+  - name: BigOrangeQWQ/wasi-sockets
+    version: 0.2.6
+    running_backend:
+      - wasm
+      - wasm-gc
+  - name: BigOrangeQWQ/wit-ffi
+    version: 0.1.0
+    running_backend:
+      - wasm
+      - wasm-gc
+  - name: BigOrangeQWQ/wit-wasi-clocks
+    version: 0.2.6
+    running_backend:
+      - wasm
+      - wasm-gc
+  - name: BigOrangeQWQ/wit-wasi-io
+    version: 0.2.6
+    running_backend:
+      - wasm
+      - wasm-gc
+  - name: BigOrangeQWQ/wit-wasi-random
+    version: 0.2.6
+    running_backend:
+      - wasm
+      - wasm-gc
+  - name: Nyuudoukumo/uuidv4
+    version: 0.2.0
+    running_backend:
+      - js
+  - name: Yoorkin/rabbit-tea
+    version: 0.10.10
+    running_backend:
+      - js
+  - name: moonbitlang/wasm4
+    version: 0.2.8
+    running_backend:
+      - wasm
+      - wasm-gc
+  - name: peter-jerry-ye/spin-imports
+    version: 0.1.3
+    running_backend:
+      - wasm
+  - name: peter-jerry-ye/wasi
+    version: 0.22.1
+    running_backend:
+      - wasm
+  - name: peter-jerry-ye/wasi-imports
+    version: 0.1.4
+    running_backend:
+      - wasm
+  - name: rami3l/js-ffi
+    version: 0.4.0
+    running_backend:
+      - js
+  - name: tiye/cirru-edn
+    version: 0.1.0
+    running_backend:
+      - js
+  - name: tiye/cirru-parser
+    version: 0.1.0
+    running_backend:
+      - js
+  - name: tiye/dom-ffi
+    version: 0.0.9
+    running_backend:
+      - js
+  - name: tiye/lexicon-fractional-index
+    version: 0.0.2
+  - name: tiye/respo
+    version: 0.0.35
+    running_backend:
+      - js
+  - name: tiye/respo-markdown
+    version: 0.0.3
+    running_backend:
+      - js
+  - name: tiye/respo-router
+    version: 0.0.1
+    running_backend:
+      - js

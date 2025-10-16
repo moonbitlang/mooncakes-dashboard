@@ -6,7 +6,6 @@ import {
   Backend,
   BuildResult,
   type CBT,
-  type CommandOutput,
   MetaData,
   type Mooncake,
   MoonCommand,
@@ -17,31 +16,10 @@ import {
   type ToolChainVersion,
 } from './types.ts';
 import { StatSubcommand } from './cli.ts';
-import { getMooncVersion, getMoonVersion, runMoon } from './moon.ts';
+import { getMoonVersion, runMoon } from './moon.ts';
 import { gitCloneTo } from './git.ts';
 import { downloadTo, getAllMooncakes } from './mooncakesio.ts';
 import { getExcludeConfig, getReposConfig } from './utils.ts';
-
-export class RunMoonError extends Error {
-  constructor(message: string, public originalError?: Error) {
-    super(message);
-    this.name = 'RunMoonError';
-  }
-}
-
-export class BuildError extends Error {
-  constructor(message: string, public originalError?: Error) {
-    super(message);
-    this.name = 'BuildError';
-  }
-}
-
-export class StatError extends Error {
-  constructor(message: string, public originalError?: Error) {
-    super(message);
-    this.name = 'StatError';
-  }
-}
 
 export async function getMooncakeSources(
   cmd: StatSubcommand,
@@ -309,21 +287,16 @@ export async function stat(cmd: StatSubcommand): Promise<{ metadata: MetaData; r
 
   try {
     const moonVersion = await getMoonVersion();
-    const mooncVersion = await getMooncVersion();
-    const toolchain: ToolChainVersion = { moonVersion, mooncVersion };
+    const toolchain: ToolChainVersion = moonVersion;
 
     const mooncakeSources = await getMooncakeSources(cmd);
-    let buildResult: BuildResult[] = [];
-
-    for (const source of mooncakeSources) {
-      buildResult = buildResult.concat(await build(source));
-    }
+    const buildResult = await Promise.all(mooncakeSources.map((source) => build(source)));
 
     return {
       metadata: { runId, runNumber, startTime, toolchainVersion: toolchain },
-      result: buildResult,
+      result: buildResult.flat(),
     };
   } catch (error) {
-    throw new StatError('Failed to run stat command', error as Error);
+    throw new Error('Failed to run stat command', { cause: error });
   }
 }

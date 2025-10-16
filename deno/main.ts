@@ -3,58 +3,53 @@ import { parseCliArgs } from './lib/cli.ts';
 import { stat } from './lib/core.ts';
 import { JsonStringifyStream } from '@std/json';
 
-async function main(): Promise<void> {
-  try {
-    const cli = parseCliArgs(Deno.args);
+// assume pwd is in the `deno` directory
 
-    if (cli.subcommand === 'stat') {
-      const dashboard = await stat(cli.statOptions);
+try {
+  const cli = parseCliArgs(Deno.args);
 
-      // 检测操作系统
-      let os: string;
-      switch (Deno.build.os) {
-        case 'windows':
-          os = 'windows';
-          break;
-        case 'linux':
-          os = 'linux';
-          break;
-        case 'darwin':
-          os = 'mac';
-          break;
-        default:
-          console.error('Unsupported OS:', Deno.build.os);
-          Deno.exit(1);
-      }
+  if (cli.subcommand === 'stat') {
+    const dashboard = await stat(cli.options);
 
-      const metadata = dashboard.metadata;
-      await Deno.mkdir(`webapp/public/${os}`, { recursive: true });
-      await Deno.writeTextFile(
-        `webapp/public/${os}/latest-${cli.statOptions.channel}-metadata.json`,
-        JSON.stringify(metadata, null, 2),
-        {
-          create: true,
-        },
-      );
+    let os: string;
+    switch (Deno.build.os) {
+      case 'windows':
+        os = 'windows';
+        break;
+      case 'linux':
+        os = 'linux';
+        break;
+      case 'darwin':
+        os = 'mac';
+        break;
+      default:
+        throw new Error(`Unsupported OS: ${Deno.build.os}`);
+    }
 
-      using file = await Deno.open(`webapp/public/${os}/latest-${cli.statOptions.channel}.jsonl`, {
+    const path = `data/${os}-${cli.options.channel}.jsonl`;
+
+    const metadata = dashboard.metadata;
+    {
+      using file = await Deno.open(path, {
         write: true,
-        create: true,
         truncate: true,
+      });
+      await ReadableStream.from([metadata]).pipeThrough(new JsonStringifyStream()).pipeThrough(
+        new TextEncoderStream(),
+      )
+        .pipeTo(file.writable);
+    }
+    {
+      using file = await Deno.open(path, {
+        append: true,
       });
       await ReadableStream.from(dashboard.result).pipeThrough(new JsonStringifyStream()).pipeThrough(
         new TextEncoderStream(),
       )
         .pipeTo(file.writable);
-
-      console.log(`Dashboard data written for ${os} ${cli.statOptions.channel}`);
     }
-  } catch (error) {
-    console.error('Error running moon-build-dashboard:', error);
-    Deno.exit(1);
   }
-}
-
-if (import.meta.main) {
-  await main();
+} catch (error) {
+  console.error('Error running moon-build-dashboard:', error);
+  Deno.exit(1);
 }

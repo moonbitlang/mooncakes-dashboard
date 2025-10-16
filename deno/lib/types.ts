@@ -107,10 +107,7 @@ export interface CBT extends Record<MoonCommand, BackendState> {
   test: BackendState;
 }
 
-export interface ToolChainVersion {
-  moonVersion: string;
-  mooncVersion: string;
-}
+export type ToolChainVersion = string[];
 
 export interface MetaData {
   runId: string;

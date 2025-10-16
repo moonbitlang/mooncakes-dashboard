@@ -1,7 +1,6 @@
 // 工具函数模块，对应 Rust 版本中的 util.rs
 
-import { RunMoonError } from './core.ts';
-import { CommandOutput, Mooncake } from './types.ts';
+import { CommandOutput } from './types.ts';
 
 export class MoonOpsError extends Error {
   constructor(public cmd: string, public originalError: Error) {
@@ -10,10 +9,10 @@ export class MoonOpsError extends Error {
   }
 }
 
-export async function getMoonVersion(): Promise<string> {
+export async function getMoonVersion(): Promise<string[]> {
   const cmd = 'moon version';
   try {
-    const process = new Deno.Command('moon', { args: ['version'] });
+    const process = new Deno.Command('moon', { args: ['version', '--all'] });
 
     const { code, stdout } = await process.output();
 
@@ -22,25 +21,7 @@ export async function getMoonVersion(): Promise<string> {
     }
 
     const version = new TextDecoder().decode(stdout).trim();
-    return version;
-  } catch (error) {
-    throw new MoonOpsError(cmd, error as Error);
-  }
-}
-
-export async function getMooncVersion(): Promise<string> {
-  const cmd = 'moonc -v';
-  try {
-    const process = new Deno.Command('moonc', { args: ['-v'] });
-
-    const { code, stdout } = await process.output();
-
-    if (code !== 0) {
-      throw new Error(`Command failed with exit code ${code}`);
-    }
-
-    const version = new TextDecoder().decode(stdout).trim();
-    return version;
+    return version.split('\n').map((line) => line.trim());
   } catch (error) {
     throw new MoonOpsError(cmd, error as Error);
   }
@@ -67,10 +48,6 @@ export async function runMoon(
     const elapsed = Date.now() - start;
     const success = code === 0;
 
-    console.info(
-      `moon ${args.join(' ')}, elapsed: ${elapsed}ms, ${success ? 'success' : 'failed'}`,
-    );
-
     return {
       duration: elapsed,
       stdout: stdoutStr,
@@ -78,9 +55,9 @@ export async function runMoon(
       success,
     };
   } catch (error) {
-    throw new RunMoonError(
-      `Failed to run moon command: ${args.join(' ')}`,
-      error as Error,
+    throw new Error(
+      `Failed to run 'moon ${args.join(' ')}'`,
+      { cause: error },
     );
   }
 }

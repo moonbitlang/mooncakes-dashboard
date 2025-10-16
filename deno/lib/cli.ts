@@ -10,10 +10,10 @@ export interface StatSubcommand {
   only?: boolean;
 }
 
-export interface MoonBuildDashBoardCli {
+export type MoonBuildDashBoardCli = {
   subcommand: 'stat';
-  statOptions: StatSubcommand;
-}
+  options: StatSubcommand;
+};
 
 export function parseCliArgs(args: string[]): MoonBuildDashBoardCli {
   const parsed = parseArgs(args, {
@@ -51,7 +51,7 @@ OPTIONS:
     case 'stat':
       return {
         subcommand: 'stat',
-        statOptions: {
+        options: {
           channel: (parsed.channel === 'nightly' ? 'nightly' : 'stable') as 'stable' | 'nightly',
           repos: parsed.repos || 'repos.yml',
           exclude: parsed.exclude || 'exclude.yml',
