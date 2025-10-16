@@ -14,9 +14,10 @@ export async function getMoonVersion(): Promise<string[]> {
   try {
     const process = new Deno.Command('moon', { args: ['version', '--all'] });
 
-    const { code, stdout } = await process.output();
+    const { success, stdout, code, stderr } = await process.output();
 
-    if (code !== 0) {
+    if (!success) {
+      console.error('`moon version --all\` failed', `stderr: ${new TextDecoder().decode(stderr)}`);
       throw new Error(`Command failed with exit code ${code}`);
     }
 
@@ -40,13 +41,12 @@ export async function runMoon(
       signal.abort();
     }, 60000); // 1 minute timeout
 
-    const { code, stdout, stderr } = await process.output();
+    const { stdout, stderr, success } = await process.output();
     clearTimeout(timeout);
 
     const stdoutStr = new TextDecoder().decode(stdout);
     const stderrStr = new TextDecoder().decode(stderr);
     const elapsed = Date.now() - start;
-    const success = code === 0;
 
     return {
       duration: elapsed,

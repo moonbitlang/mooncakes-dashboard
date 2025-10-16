@@ -39,7 +39,7 @@ export async function getMooncakeSources(
       repoList.push({
         type: 'git',
         url: repo.link,
-        rev: [repo.branch],
+        rev: repo.branch,
         runningOs: repo.running_os || defaultRunningOs,
         runningBackend: repo.running_backend || defaultRunningBackend,
       });
@@ -54,7 +54,7 @@ export async function getMooncakeSources(
         repoList.push({
           type: 'mooncakesio',
           name: r.name,
-          version: [r.version],
+          version: r.version,
           runningOs: r.running_os || defaultRunningOs,
           runningBackend: r.running_backend || defaultRunningBackend,
         });
@@ -75,7 +75,7 @@ export async function getMooncakeSources(
             repoList.push({
               type: 'mooncakesio',
               name: mooncake,
-              version: [config.version],
+              version: config.version,
               runningOs: config.running_os || defaultRunningOs,
               runningBackend: config.running_backend || defaultRunningBackend,
             });
@@ -84,7 +84,7 @@ export async function getMooncakeSources(
           repoList.push({
             type: 'mooncakesio',
             name: mooncake,
-            version: [mooncakes.getLatestVersion(mooncake)],
+            version: mooncakes.getLatestVersion(mooncake),
             runningOs: defaultRunningOs,
             runningBackend: defaultRunningBackend,
           });
@@ -195,88 +195,80 @@ export async function runMatrix(
   return result;
 }
 
-export async function build(source: Mooncake): Promise<BuildResult[]> {
-  const results: Array<BuildResult> = [];
-
+export async function build(source: Mooncake): Promise<BuildResult> {
   if (source.type === 'git') {
-    for (const rev of source.rev) {
-      const tmp = await Deno.makeTempDir();
+    const tmp = await Deno.makeTempDir();
+    try {
+      await gitCloneTo(source.url, tmp, source.rev, tmp);
+      const cbt = await runMatrix(
+        tmp,
+        source,
+        source.runningOs,
+        source.runningBackend,
+      );
+      return {
+        source: {
+          type: 'git',
+          url: source.url,
+          rev: source.rev,
+        },
+        cbt: cbt,
+      };
+    } catch (error) {
+      console.error(`Failed to checkout ${source.rev}:`, error);
+      return {
+        source: {
+          type: 'git',
+          url: source.url,
+          rev: source.rev,
+        },
+        error: (error as Error).message,
+      };
+    } finally {
       try {
-        await gitCloneTo(source.url, tmp, rev, tmp);
-        const cbt = await runMatrix(
-          tmp,
-          source,
-          source.runningOs,
-          source.runningBackend,
-        );
-        results.push({
-          source: {
-            type: 'git',
-            url: source.url,
-            rev,
-          },
-          cbt: cbt,
-        });
-      } catch (error) {
-        console.error(`Failed to checkout ${rev}:`, error);
-        results.push({
-          source: {
-            type: 'git',
-            url: source.url,
-            rev,
-          },
-          error: (error as Error).message,
-        });
-      } finally {
-        try {
-          await Deno.remove(tmp, { recursive: true });
-        } catch {
-          // 忽略清理失败
-        }
+        await Deno.remove(tmp, { recursive: true });
+      } catch {
+        // 忽略清理失败
       }
     }
-  } else if (source.type === 'mooncakesio') {
-    for (const version of source.version) {
-      const tmp = await Deno.makeTempDir();
+  } else {
+    const tmp = await Deno.makeTempDir();
+    try {
+      await downloadTo(source.name, source.version, tmp);
+      const workdir = join(tmp, source.version);
+      const cbt = await runMatrix(
+        workdir,
+        source,
+        source.runningOs,
+        source.runningBackend,
+      );
+      return {
+        source: {
+          type: 'mooncakes',
+          name: source.name,
+          version: source.version,
+        },
+        cbt: cbt,
+      };
+    } catch (error) {
+      console.error(`Failed to download ${source.name}@${source.version}:`, error);
+      return {
+        source: {
+          type: 'mooncakes',
+          name: source.name,
+          version: source.version,
+        },
+        error: (error as Error).message,
+      };
+    } finally {
+      // 清理临时目录
       try {
-        await downloadTo(source.name, version, tmp);
-        const workdir = join(tmp, version);
-        const cbt = await runMatrix(
-          workdir,
-          source,
-          source.runningOs,
-          source.runningBackend,
-        );
-        results.push({
-          source: {
-            type: 'mooncakes',
-            name: source.name,
-            version,
-          },
-          cbt: cbt,
-        });
-      } catch (error) {
-        console.error(`Failed to download ${source.name}/${version}:`, error);
-        results.push({
-          source: {
-            type: 'mooncakes',
-            name: source.name,
-            version,
-          },
-          error: (error as Error).message,
-        });
-      } finally {
-        // 清理临时目录
-        try {
-          await Deno.remove(tmp, { recursive: true });
-        } catch {
-          // 忽略清理失败
-        }
+        await Deno.remove(tmp, { recursive: true });
+      } catch {
+        // 忽略清理失败
       }
     }
   }
-
-  return results;
 }
 
 export async function stat(cmd: StatSubcommand): Promise<{ metadata: MetaData; result: BuildResult[] }> {
@@ -294,7 +286,7 @@ export async function stat(cmd: StatSubcommand): Promise<{ metadata: MetaData; r
 
     return {
       metadata: { runId, runNumber, startTime, toolchainVersion: toolchain },
-      result: buildResult.flat(),
+      result: buildResult,
     };
   } catch (error) {
     throw new Error('Failed to run stat command', { cause: error });

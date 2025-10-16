@@ -55,13 +55,13 @@ export interface MoonBitModule {
 export interface MooncakesModule extends MoonBitModule {
   type: 'mooncakesio';
   name: string;
-  version: string[];
+  version: string;
 }
 
 export interface GitModule extends MoonBitModule {
   type: 'git';
   url: string;
-  rev: string[];
+  rev: string;
 }
 
 export type Mooncake = MooncakesModule | GitModule;
