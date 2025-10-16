@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'https://esm.sh/preact/hooks';
 import { html, render } from 'https://esm.sh/htm/preact';
-import type { BuildResult, MetaData } from './lib/types.ts';
+import type { BuildResult, MetaData, Result } from './lib/types.ts';
 
 type DataMap = {
   [key: string]: {
@@ -27,6 +27,12 @@ function getIdentifier(source: BuildResult['source']): string {
   } else {
     return `${source.url}#${source.rev}`;
   }
+}
+
+function getResultStatus(res: Result): 'success' | 'failure' | 'skipped' {
+  if (res.status === 'Success') return 'success';
+  if (res.status === 'Failure') return 'failure';
+  return 'skipped';
 }
 
 function getOverallStatus(result: BuildResult | null): 'success' | 'failure' | 'skipped' | 'error' {
@@ -66,24 +72,105 @@ function getLabel(row: RowData): 'regression' | 'inconsistent' | 'ok' | '' {
   return 'ok';
 }
 
-function StatusCell({ result }: { result: BuildResult | null }) {
-  const status = getOverallStatus(result);
+function openLogsInNewTab(
+  result: BuildResult | null,
+  _identifier: string,
+  command: 'check' | 'build' | 'test',
+  backend: 'wasm' | 'wasm-gc' | 'js' | 'native',
+) {
+  if (!result) return;
+
+  let content = '';
+
+  // Add error message if present
+  if (result.error) {
+    content += `Error: ${result.error}\n\n`;
+  }
+
+  // Get the specific command and backend result
+  if (result.cbt) {
+    const res = result.cbt[command][backend];
+
+    content += `=== ${command.toUpperCase()} - ${backend} ===\n`;
+    content += `Status: ${res.status}\n`;
+
+    if (res.status !== 'Skipped') {
+      if ('start_time' in res) content += `Start Time: ${res.start_time}\n`;
+      if ('elapsed' in res) content += `Elapsed: ${res.elapsed}ms\n`;
+      content += '\n';
+
+      if ('stderr' in res && res.stderr) {
+        content += 'STDERR:\n';
+        content += res.stderr;
+        content += '\n\n';
+      }
+
+      if ('stdout' in res && res.stdout) {
+        content += 'STDOUT:\n';
+        content += res.stdout;
+        content += '\n\n';
+      }
+    }
+  }
+
+  if (!content || content.trim() === '') {
+    content = 'No stderr/stdout output available.';
+  }
+
+  // Create blob URL and open in new tab
+  const blob = new Blob([content], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const newTab = globalThis.open(url, '_blank');
+
+  // Clean up the blob URL after a delay to allow the tab to load
+  if (newTab) {
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+}
+
+// Detailed cell for specific command and backend
+function DetailCell({
+  result,
+  identifier,
+  command,
+  backend,
+}: {
+  result: BuildResult | null;
+  identifier: string;
+  command: 'check' | 'build' | 'test';
+  backend: 'wasm' | 'wasm-gc' | 'js' | 'native';
+}) {
+  let status: 'success' | 'failure' | 'skipped' = 'skipped';
+
+  if (result && result.cbt) {
+    const res = result.cbt[command][backend];
+    status = getResultStatus(res);
+  }
+
   const colors = {
     success: '#22c55e',
     failure: '#ef4444',
     skipped: '#94a3b8',
-    error: '#f97316',
   };
 
   const labels = {
     success: '✓',
     failure: '✗',
     skipped: '-',
-    error: '!',
+  };
+
+  const handleClick = () => {
+    openLogsInNewTab(result, identifier, command, backend);
   };
 
   return html`
-    <td style="background-color: ${colors[status]}; color: white; text-align: center; padding: 8px;">
+    <td
+      style="background-color: ${colors[
+        status
+      ]}; color: white; text-align: center; padding: 4px; cursor: pointer; user-select: none; font-size: 12px;"
+      onClick="${handleClick}"
+      title="Click to open ${command} ${backend} logs"
+    >
       ${labels[status]}
     </td>
   `;
@@ -191,49 +278,97 @@ function App() {
     <div style="padding: 20px; font-family: system-ui, -apple-system, sans-serif;">
       <h1 style="margin-bottom: 20px;">MoonBit Build Dashboard</h1>
 
-      <table style="border-collapse: collapse; width: 100%; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+      <table style="border-collapse: collapse; width: 100%; box-shadow: 0 1px 3px rgba(0,0,0,0.1); font-size: 11px;">
         <thead>
+          <!-- Platform headers -->
           <tr style="background-color: #1e293b; color: white;">
-            <th style="padding: 12px; text-align: center; border: 1px solid #cbd5e1;">Source</th>
-            <th style="padding: 12px; text-align: center; border: 1px solid #cbd5e1;" colspan="2">Mac</th>
-            <th style="padding: 12px; text-align: center; border: 1px solid #cbd5e1;" colspan="2">Linux</th>
-            <th style="padding: 12px; text-align: center; border: 1px solid #cbd5e1;" colspan="2">Windows</th>
-            <th style="padding: 12px; text-align: center; border: 1px solid #cbd5e1;">Label</th>
+            <th style="padding: 8px; text-align: center; border: 1px solid #cbd5e1;" rowspan="3">Source</th>
+            <th style="padding: 8px; text-align: center; border: 1px solid #cbd5e1;" colspan="24">Mac</th>
+            <th style="padding: 8px; text-align: center; border: 1px solid #cbd5e1;" colspan="24">Linux</th>
+            <th style="padding: 8px; text-align: center; border: 1px solid #cbd5e1;" colspan="24">Windows</th>
+            <th style="padding: 8px; text-align: center; border: 1px solid #cbd5e1;" rowspan="3">Label</th>
           </tr>
+          <!-- Channel headers -->
           <tr style="background-color: #334155; color: white;">
-            <th style="padding: 8px; border: 1px solid #cbd5e1;"></th>
-            <th style="padding: 8px; text-align: center; border: 1px solid #cbd5e1;">Stable</th>
-            <th style="padding: 8px; text-align: center; border: 1px solid #cbd5e1;">Nightly</th>
-            <th style="padding: 8px; text-align: center; border: 1px solid #cbd5e1;">Stable</th>
-            <th style="padding: 8px; text-align: center; border: 1px solid #cbd5e1;">Nightly</th>
-            <th style="padding: 8px; text-align: center; border: 1px solid #cbd5e1;">Stable</th>
-            <th style="padding: 8px; text-align: center; border: 1px solid #cbd5e1;">Nightly</th>
-            <th style="padding: 8px; text-align: center; border: 1px solid #cbd5e1;"></th>
+            <th style="padding: 6px; text-align: center; border: 1px solid #cbd5e1;" colspan="12">Stable</th>
+            <th style="padding: 6px; text-align: center; border: 1px solid #cbd5e1;" colspan="12">Nightly</th>
+            <th style="padding: 6px; text-align: center; border: 1px solid #cbd5e1;" colspan="12">Stable</th>
+            <th style="padding: 6px; text-align: center; border: 1px solid #cbd5e1;" colspan="12">Nightly</th>
+            <th style="padding: 6px; text-align: center; border: 1px solid #cbd5e1;" colspan="12">Stable</th>
+            <th style="padding: 6px; text-align: center; border: 1px solid #cbd5e1;" colspan="12">Nightly</th>
+          </tr>
+          <!-- Command headers -->
+          <tr style="background-color: #475569; color: white;">
+            ${Array(6).fill(null).map(() =>
+              html`
+                <th style="padding: 4px; text-align: center; border: 1px solid #cbd5e1; font-size: 9px;" colspan="4">C</th>
+                <th style="padding: 4px; text-align: center; border: 1px solid #cbd5e1; font-size: 9px;" colspan="4">B</th>
+                <th style="padding: 4px; text-align: center; border: 1px solid #cbd5e1; font-size: 9px;" colspan="4">T</th>
+              `
+            )}
+          </tr>
+          <!-- Backend headers -->
+          <tr style="background-color: #64748b; color: white;">
+            ${Array(18).fill(null).map(() =>
+              html`
+                <th style="padding: 2px; text-align: center; border: 1px solid #cbd5e1; font-size: 8px;">w</th>
+                <th style="padding: 2px; text-align: center; border: 1px solid #cbd5e1; font-size: 8px;">wg</th>
+                <th style="padding: 2px; text-align: center; border: 1px solid #cbd5e1; font-size: 8px;">j</th>
+                <th style="padding: 2px; text-align: center; border: 1px solid #cbd5e1; font-size: 8px;">n</th>
+              `
+            )}
           </tr>
         </thead>
         <tbody>
-          ${rows.map((row, idx) =>
-            html`
+          ${rows.map((row, idx) => {
+            const platforms = ['mac', 'linux', 'windows'] as const;
+            const channels = ['stable', 'nightly'] as const;
+            const commands = ['check', 'build', 'test'] as const;
+            const backends = ['wasm', 'wasm-gc', 'js', 'native'] as const;
+
+            return html`
               <tr style="background-color: ${idx % 2 === 0 ? '#f8fafc' : 'white'};">
-                <td style="padding: 8px; border: 1px solid #cbd5e1; font-family: monospace; font-size: 12px;">
+                <td
+                  style="padding: 6px; border: 1px solid #cbd5e1; font-family: monospace; font-size: 10px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
+                  title="${row.identifier}"
+                >
                   ${row.identifier}
                 </td>
-                <${StatusCell} result="${row['mac-stable']}" />
-                <${StatusCell} result="${row['mac-nightly']}" />
-                <${StatusCell} result="${row['linux-stable']}" />
-                <${StatusCell} result="${row['linux-nightly']}" />
-                <${StatusCell} result="${row['windows-stable']}" />
-                <${StatusCell} result="${row['windows-nightly']}" />
+                ${platforms.map((platform) =>
+                  channels.map((channel) =>
+                    commands.map((cmd) =>
+                      backends.map((backend) => {
+                        const result = row[`${platform}-${channel}`];
+                        return html`
+                          <${DetailCell} result="${result}" command="${cmd}" backend="${backend}" identifier="${row
+                            .identifier}" />
+                        `;
+                      })
+                    )
+                  )
+                )}
                 <${LabelCell} label="${row.label}" />
               </tr>
-            `
-          )}
+            `;
+          })}
         </tbody>
       </table>
 
       <div style="margin-top: 20px; padding: 10px; background-color: #f1f5f9; border-radius: 4px;">
         <h3 style="margin-top: 0;">Legend:</h3>
-        <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+        <p style="margin: 5px 0; font-style: italic; color: #64748b;">
+          💡 Click on any cell to view logs in a new tab
+        </p>
+        <div style="margin-top: 10px;">
+          <p style="margin: 5px 0;"><strong>Headers:</strong></p>
+          <ul style="margin: 5px 0; padding-left: 20px; font-size: 12px;">
+            <li><strong>C</strong> = Check, <strong>B</strong> = Build, <strong>T</strong> = Test</li>
+            <li>
+              <strong>w</strong> = wasm, <strong>wg</strong> = wasm-gc, <strong>j</strong> = js, <strong>n</strong> = native
+            </li>
+          </ul>
+        </div>
+        <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-top: 10px;">
           <div>
             <span
               style="display: inline-block; width: 20px; height: 20px; background-color: #22c55e; margin-right: 5px;"
