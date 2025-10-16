@@ -13,6 +13,8 @@ permissions:
   contents: write
   pull-requests: write
   actions: write
+  pages: write
+  id-token: write
 
 jobs:
   collect-data:
@@ -27,8 +29,10 @@ jobs:
           - platform: windows-latest
             name: windows
         channel:
-          - latest
-          - nightly
+          - channel: latest
+            name: stable
+          - channel: nightly
+            name: nightly
     runs-on: ${{ matrix.os.platform }}
     steps:
       - uses: actions/checkout@v5
@@ -40,14 +44,14 @@ jobs:
       - name: install MoonBit
         if: ${{ matrix.os.platform != 'windows-latest' }}
         run: |
-          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash -s "${{ matrix.channel}}"
+          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash -s "${{ matrix.channel.channel }}"
           echo "$HOME/.moon/bin" >> $GITHUB_PATH
         shell: bash
 
       - name: install MoonBit
         if: ${{ matrix.os.platform == 'windows-latest' }}
         env:
-          MOONBIT_INSTALL_VERSION: ${{ matrix.channel }}
+          MOONBIT_INSTALL_VERSION: ${{ matrix.channel.channel }}
         run: |
           Set-ExecutionPolicy RemoteSigned -Scope CurrentUser; irm https://cli.moonbitlang.com/install/powershell.ps1 | iex
           "C:\Users\runneradmin\.moon\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
@@ -65,12 +69,67 @@ jobs:
 
       - name: Build
         run: |
-          deno run -A deno/src/main.ts --repos repos.yml --exclude exclude.yml --channel ${{ matrix.channel }}
+          cd deno
+          deno run -A main.ts --repos resources/repos.yml --exclude resources/exclude.yml --channel ${{ matrix.channel.name }}
 
       - name: Upload data
         uses: actions/upload-artifact@v4
         with:
-          name: data-${{ matrix.os.name }}-${{ matrix.channel }}
-          path: './webapp/public/${{ matrix.os.name }}/'
+          name: ${{ matrix.os.name }}-${{ matrix.channel.name }}.jsonl
+          path: './deno/data/${{ matrix.os.name }}-${{ matrix.channel.name }}.jsonl'
           if-no-files-found: error
+
+  publish-site:
+    needs: collect-data
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      # Download all artifacts from the matrix jobs
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts
+      - name: List downloaded artifacts
+        run: ls -R ./artifacts
+
+      # Organize data files
+      - name: Organize data files
+        run: |
+          mkdir -p deno/data
+          # Rename 'latest' to 'stable' to match the expected filenames
+          mv artifacts/mac-stable.jsonl/mac-stable.jsonl deno/data/mac-stable.jsonl
+          mv artifacts/mac-nightly.jsonl/mac-nightly.jsonl deno/data/mac-nightly.jsonl
+          mv artifacts/linux-stable.jsonl/linux-stable.jsonl deno/data/linux-stable.jsonl
+          mv artifacts/linux-nightly.jsonl/linux-nightly.jsonl deno/data/linux-nightly.jsonl
+          mv artifacts/windows-stable.jsonl/windows-stable.jsonl deno/data/windows-stable.jsonl
+          mv artifacts/windows-nightly.jsonl/windows-nightly.jsonl deno/data/windows-nightly.jsonl
+
+      # Bundle web.ts to web.js
+      - name: Bundle web.js
+        run: |
+          cd deno
+          deno bundle -A web.ts -o web.js
+
+      # Prepare publish directory
+      - name: Prepare publish directory
+        run: |
+          mkdir -p publish
+          cp deno/index.html publish/
+          cp deno/web.js publish/
+          cp -r deno/data publish/
+
+      # Publish to GitHub Pages
+      - name: Upload GitHub Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./publish
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
 
