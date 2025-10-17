@@ -99,17 +99,13 @@ function openLogsInNewTab(
       if ('elapsed' in res) content += `Elapsed: ${res.elapsed}ms\n`;
       content += '\n';
 
-      if ('stderr' in res && res.stderr) {
-        content += 'STDERR:\n';
-        content += res.stderr;
-        content += '\n\n';
-      }
+      content += 'STDERR:\n';
+      content += res.stderr;
+      content += '\n\n';
 
-      if ('stdout' in res && res.stdout) {
-        content += 'STDOUT:\n';
-        content += res.stdout;
-        content += '\n\n';
-      }
+      content += 'STDOUT:\n';
+      content += res.stdout;
+      content += '\n\n';
     }
   }
 
@@ -297,24 +293,24 @@ function App() {
               `
             )}
           </tr>
-          <!-- Command headers -->
+          <!-- Backend headers -->
           <tr style="background-color: #475569; color: white;">
             ${Array(6).fill(null).map(() =>
               html`
-                <th style="padding: 4px; text-align: center; border: 1px solid #cbd5e1; font-size: 9px;" colspan="4">Check</th>
-                <th style="padding: 4px; text-align: center; border: 1px solid #cbd5e1; font-size: 9px;" colspan="4">Build</th>
-                <th style="padding: 4px; text-align: center; border: 1px solid #cbd5e1; font-size: 9px;" colspan="4">Test</th>
+                <th style="padding: 4px; text-align: center; border: 1px solid #cbd5e1; font-size: 9px;" colspan="3">wasm</th>
+                <th style="padding: 4px; text-align: center; border: 1px solid #cbd5e1; font-size: 9px;" colspan="3">wasm-gc</th>
+                <th style="padding: 4px; text-align: center; border: 1px solid #cbd5e1; font-size: 9px;" colspan="3">js</th>
+                <th style="padding: 4px; text-align: center; border: 1px solid #cbd5e1; font-size: 9px;" colspan="3">native</th>
               `
             )}
           </tr>
-          <!-- Backend headers -->
+          <!-- Command headers -->
           <tr style="background-color: #64748b; color: white;">
-            ${Array(18).fill(null).map(() =>
+            ${Array(24).fill(null).map(() =>
               html`
-                <th style="padding: 2px; text-align: center; border: 1px solid #cbd5e1; font-size: 8px;">w</th>
-                <th style="padding: 2px; text-align: center; border: 1px solid #cbd5e1; font-size: 8px;">wg</th>
-                <th style="padding: 2px; text-align: center; border: 1px solid #cbd5e1; font-size: 8px;">j</th>
-                <th style="padding: 2px; text-align: center; border: 1px solid #cbd5e1; font-size: 8px;">n</th>
+                <th style="padding: 2px; text-align: center; border: 1px solid #cbd5e1; font-size: 8px;">c</th>
+                <th style="padding: 2px; text-align: center; border: 1px solid #cbd5e1; font-size: 8px;">b</th>
+                <th style="padding: 2px; text-align: center; border: 1px solid #cbd5e1; font-size: 8px;">t</th>
               `
             )}
           </tr>
@@ -336,8 +332,8 @@ function App() {
                 </td>
                 ${platforms.map((platform) =>
                   channels.map((channel) =>
-                    commands.map((cmd) =>
-                      backends.map((backend) => {
+                    backends.map((backend) =>
+                      commands.map((cmd) => {
                         const result = row[`${platform}-${channel}`];
                         return html`
                           <${DetailCell} result="${result}" command="${cmd}" backend="${backend}" identifier="${row
@@ -363,7 +359,7 @@ function App() {
           <p style="margin: 5px 0;"><strong>Headers:</strong></p>
           <ul style="margin: 5px 0; padding-left: 20px; font-size: 12px;">
             <li>
-              <strong>w</strong> = wasm, <strong>wg</strong> = wasm-gc, <strong>j</strong> = js, <strong>n</strong> = native
+              <strong>c</strong> = check, <strong>b</strong> = build, <strong>t</strong> = test
             </li>
           </ul>
         </div>
