@@ -1,7 +1,6 @@
 /// <reference lib="deno.ns" />
 
 // 核心业务逻辑模块，对应 Rust 版本中的 main.rs 核心功能
-import { join } from '@std/path';
 import {
   Backend,
   BuildResult,
@@ -111,6 +110,7 @@ export async function statMooncake(
       '-q',
       '--target',
       backend,
+      '--frozen',
       '--target-dir',
       `target/${backend}`,
       ...(command === 'test' ? ['--build-only'] : []),
@@ -203,6 +203,7 @@ export async function build(source: Mooncake): Promise<BuildResult> {
     if (source.type === 'git') {
       try {
         await gitCloneTo(source.url, tmp, source.rev, tmp);
+        await runMoon(tmp, ['install']);
         const cbt = await runMatrix(
           tmp,
           source,
@@ -231,9 +232,9 @@ export async function build(source: Mooncake): Promise<BuildResult> {
     } else {
       try {
         await downloadTo(source.name, source.version, tmp);
-        const workdir = join(tmp, source.version);
+        await runMoon(tmp, ['install']);
         const cbt = await runMatrix(
-          workdir,
+          tmp,
           source,
           source.runningOs,
           source.runningBackend,

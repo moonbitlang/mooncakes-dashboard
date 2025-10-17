@@ -14,7 +14,7 @@ export async function downloadTo(
 ): Promise<void> {
   const versionEnc = encodeURIComponent(version);
   const url = `${BASE_URL}/${name}/${versionEnc}.zip`;
-  const outputDir = join(dst, version);
+  const outputDir = dst;
 
   try {
     // 创建目标目录
