@@ -136,23 +136,27 @@ function DetailCell({
   command: 'check' | 'build' | 'test';
   backend: 'wasm' | 'wasm-gc' | 'js' | 'native';
 }) {
-  let status: 'success' | 'failure' | 'skipped' = 'skipped';
+  let status: 'success' | 'failure' | 'skipped' | 'error' = 'skipped';
 
   if (result && result.cbt) {
     const res = result.cbt[command][backend];
     status = getResultStatus(res);
+  } else if (result && result.error) {
+    status = 'error';
   }
 
   const colors = {
     success: '#22c55e',
     failure: '#ef4444',
     skipped: '#94a3b8',
+    error: '#f97316',
   };
 
   const labels = {
     success: '✓',
     failure: '✗',
     skipped: '-',
+    error: '!',
   };
 
   const handleClick = () => {
