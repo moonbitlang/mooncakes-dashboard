@@ -107,7 +107,6 @@ export async function statMooncake(
     const startTime = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
     const result = await runMoon(workdir, [
       command,
-      '-q',
       '--target',
       backend,
       '--frozen',
