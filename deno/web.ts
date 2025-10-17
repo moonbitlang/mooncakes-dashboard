@@ -118,7 +118,7 @@ function openLogsInNewTab(
   }
 
   // Create blob URL and open in new tab
-  const blob = new Blob([content], { type: 'text/plain' });
+  const blob = new Blob([content], { type: 'text/plain;charset=utf8' });
   const url = URL.createObjectURL(blob);
   const newTab = globalThis.open(url, '_blank');
 
@@ -362,7 +362,6 @@ function App() {
         <div style="margin-top: 10px;">
           <p style="margin: 5px 0;"><strong>Headers:</strong></p>
           <ul style="margin: 5px 0; padding-left: 20px; font-size: 12px;">
-            <li><strong>C</strong> = Check, <strong>B</strong> = Build, <strong>T</strong> = Test</li>
             <li>
               <strong>w</strong> = wasm, <strong>wg</strong> = wasm-gc, <strong>j</strong> = js, <strong>n</strong> = native
             </li>
