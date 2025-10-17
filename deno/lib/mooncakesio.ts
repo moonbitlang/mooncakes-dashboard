@@ -128,7 +128,7 @@ export async function getAllMooncakes(): Promise<MooncakesDB> {
         includeDirs: false,
       })
     ) {
-      const name = relative(indexDir, entry.path).replace(/\.index$/, '');
+      const name = relative(indexDir, entry.path).replace(/\.index$/, '').replaceAll('\\', '/');
 
       try {
         using indexContent = await Deno.open(entry.path);
