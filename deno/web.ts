@@ -275,7 +275,7 @@ function App() {
       <h1 style="margin-bottom: 20px;">MoonBit Build Dashboard</h1>
 
       <table style="border-collapse: collapse; width: 100%; box-shadow: 0 1px 3px rgba(0,0,0,0.1); font-size: 11px;">
-        <thead>
+        <thead style="position: sticky; top: 0; z-index: 10;">
           <!-- Platform headers -->
           <tr style="background-color: #1e293b; color: white;">
             <th style="padding: 8px; text-align: center; border: 1px solid #cbd5e1;" rowspan="4">Source</th>
