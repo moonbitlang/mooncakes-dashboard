@@ -282,28 +282,28 @@ function App() {
         <thead>
           <!-- Platform headers -->
           <tr style="background-color: #1e293b; color: white;">
-            <th style="padding: 8px; text-align: center; border: 1px solid #cbd5e1;" rowspan="3">Source</th>
+            <th style="padding: 8px; text-align: center; border: 1px solid #cbd5e1;" rowspan="4">Source</th>
             <th style="padding: 8px; text-align: center; border: 1px solid #cbd5e1;" colspan="24">Mac</th>
             <th style="padding: 8px; text-align: center; border: 1px solid #cbd5e1;" colspan="24">Linux</th>
             <th style="padding: 8px; text-align: center; border: 1px solid #cbd5e1;" colspan="24">Windows</th>
-            <th style="padding: 8px; text-align: center; border: 1px solid #cbd5e1;" rowspan="3">Label</th>
+            <th style="padding: 8px; text-align: center; border: 1px solid #cbd5e1;" rowspan="4">Label</th>
           </tr>
           <!-- Channel headers -->
           <tr style="background-color: #334155; color: white;">
-            <th style="padding: 6px; text-align: center; border: 1px solid #cbd5e1;" colspan="12">Stable</th>
-            <th style="padding: 6px; text-align: center; border: 1px solid #cbd5e1;" colspan="12">Nightly</th>
-            <th style="padding: 6px; text-align: center; border: 1px solid #cbd5e1;" colspan="12">Stable</th>
-            <th style="padding: 6px; text-align: center; border: 1px solid #cbd5e1;" colspan="12">Nightly</th>
-            <th style="padding: 6px; text-align: center; border: 1px solid #cbd5e1;" colspan="12">Stable</th>
-            <th style="padding: 6px; text-align: center; border: 1px solid #cbd5e1;" colspan="12">Nightly</th>
+            ${Array(3).fill(null).map(() =>
+              html`
+                <th style="padding: 6px; text-align: center; border: 1px solid #cbd5e1;" colspan="12">Stable</th>
+                <th style="padding: 6px; text-align: center; border: 1px solid #cbd5e1;" colspan="12">Nightly</th>
+              `
+            )}
           </tr>
           <!-- Command headers -->
           <tr style="background-color: #475569; color: white;">
             ${Array(6).fill(null).map(() =>
               html`
-                <th style="padding: 4px; text-align: center; border: 1px solid #cbd5e1; font-size: 9px;" colspan="4">C</th>
-                <th style="padding: 4px; text-align: center; border: 1px solid #cbd5e1; font-size: 9px;" colspan="4">B</th>
-                <th style="padding: 4px; text-align: center; border: 1px solid #cbd5e1; font-size: 9px;" colspan="4">T</th>
+                <th style="padding: 4px; text-align: center; border: 1px solid #cbd5e1; font-size: 9px;" colspan="4">Check</th>
+                <th style="padding: 4px; text-align: center; border: 1px solid #cbd5e1; font-size: 9px;" colspan="4">Build</th>
+                <th style="padding: 4px; text-align: center; border: 1px solid #cbd5e1; font-size: 9px;" colspan="4">Test</th>
               `
             )}
           </tr>
