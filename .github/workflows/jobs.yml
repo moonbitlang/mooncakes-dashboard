@@ -69,14 +69,13 @@ jobs:
 
       - name: Build
         run: |
-          cd deno
           deno run -A main.ts --repos resources/repos.yml --exclude resources/exclude.yml --channel ${{ matrix.channel.name }}
 
       - name: Upload data
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.os.name }}-${{ matrix.channel.name }}.jsonl
-          path: './deno/data/${{ matrix.os.name }}-${{ matrix.channel.name }}.jsonl'
+          path: './data/${{ matrix.os.name }}-${{ matrix.channel.name }}.jsonl'
           if-no-files-found: error
 
   publish-site:
@@ -102,26 +101,25 @@ jobs:
         run: |
           mkdir -p deno/data
           # Rename 'latest' to 'stable' to match the expected filenames
-          mv artifacts/mac-stable.jsonl/mac-stable.jsonl deno/data/mac-stable.jsonl
-          mv artifacts/mac-nightly.jsonl/mac-nightly.jsonl deno/data/mac-nightly.jsonl
-          mv artifacts/linux-stable.jsonl/linux-stable.jsonl deno/data/linux-stable.jsonl
-          mv artifacts/linux-nightly.jsonl/linux-nightly.jsonl deno/data/linux-nightly.jsonl
-          mv artifacts/windows-stable.jsonl/windows-stable.jsonl deno/data/windows-stable.jsonl
-          mv artifacts/windows-nightly.jsonl/windows-nightly.jsonl deno/data/windows-nightly.jsonl
+          mv artifacts/mac-stable.jsonl/mac-stable.jsonl data/mac-stable.jsonl
+          mv artifacts/mac-nightly.jsonl/mac-nightly.jsonl data/mac-nightly.jsonl
+          mv artifacts/linux-stable.jsonl/linux-stable.jsonl data/linux-stable.jsonl
+          mv artifacts/linux-nightly.jsonl/linux-nightly.jsonl data/linux-nightly.jsonl
+          mv artifacts/windows-stable.jsonl/windows-stable.jsonl data/windows-stable.jsonl
+          mv artifacts/windows-nightly.jsonl/windows-nightly.jsonl data/windows-nightly.jsonl
 
       # Bundle web.ts to web.js
       - name: Bundle web.js
         run: |
-          cd deno
           deno bundle web.ts -o web.js
 
       # Prepare publish directory
       - name: Prepare publish directory
         run: |
           mkdir -p publish
-          cp deno/index.html publish/
-          cp deno/web.js publish/
-          cp -r deno/data publish/
+          cp index.html publish/
+          cp web.js publish/
+          cp -r data publish/
 
       # Publish to GitHub Pages
       - name: Upload GitHub Pages artifact
