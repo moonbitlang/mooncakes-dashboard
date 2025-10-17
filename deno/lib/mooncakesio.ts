@@ -6,20 +6,6 @@ import * as fs from '@std/fs';
 
 const BASE_URL = 'https://moonbitlang-mooncakes.s3.us-west-2.amazonaws.com/user';
 
-export class MooncakesIOError extends Error {
-  constructor(message: string, public originalError?: Error) {
-    super(message);
-    this.name = 'MooncakesIOError';
-  }
-}
-
-export class MooncakesDBError extends Error {
-  constructor(public key: string) {
-    super(`Key not found: ${key}`);
-    this.name = 'MooncakesDBError';
-  }
-}
-
 export async function downloadTo(
   name: string,
   version: string,
@@ -87,9 +73,9 @@ export async function downloadTo(
       }
     }
   } catch (error) {
-    throw new MooncakesIOError(
+    throw new Error(
       `Failed to download ${name}/${version}`,
-      error as Error,
+      { cause: error },
     );
   }
 }
@@ -132,7 +118,7 @@ export class MooncakesDB {
   getLatestVersion(name: string): string {
     const versions = this.db.get(name);
     if (!versions || versions.length === 0) {
-      throw new MooncakesDBError(name);
+      throw new Error(`No versions found for mooncake: ${name}`);
     }
     return versions[versions.length - 1];
   }
@@ -186,9 +172,9 @@ export async function getAllMooncakes(): Promise<MooncakesDB> {
       }
     }
   } catch (error) {
-    throw new MooncakesIOError(
+    throw new Error(
       'Failed to read mooncakes database',
-      error as Error,
+      { cause: error },
     );
   }
 
