@@ -113,7 +113,7 @@ jobs:
       - name: Bundle web.js
         run: |
           cd deno
-          deno bundle -A web.ts -o web.js
+          deno bundle web.ts -o web.js
 
       # Prepare publish directory
       - name: Prepare publish directory
