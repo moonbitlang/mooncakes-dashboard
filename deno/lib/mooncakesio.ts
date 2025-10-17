@@ -1,8 +1,9 @@
-// Mooncakes.io 操作模块，对应 Rust 版本中的 mooncakesio.rs
+// Mooncakes.io 操作模块,对应 Rust 版本中的 mooncakesio.rs
 import { join, relative } from '@std/path';
 import { TextLineStream } from '@std/streams';
 import { JsonParseStream } from '@std/json';
 import * as fs from '@std/fs';
+import { BlobReader, BlobWriter, ZipReader } from '@zip-js/zip-js';
 
 const BASE_URL = 'https://moonbitlang-mooncakes.s3.us-west-2.amazonaws.com/user';
 
@@ -13,65 +14,48 @@ export async function downloadTo(
 ): Promise<void> {
   const versionEnc = encodeURIComponent(version);
   const url = `${BASE_URL}/${name}/${versionEnc}.zip`;
-  const outputZip = join(dst, `${version}.zip`);
   const outputDir = join(dst, version);
 
   try {
     // 创建目标目录
     await Deno.mkdir(outputDir, { recursive: true });
 
-    // 检测操作系统并相应地下载和解压
-    const osInfo = Deno.build.os;
+    // 使用 fetch 下载文件
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Failed to download ${name}@${version}: ${response.status} ${response.statusText}`);
+    }
 
-    if (osInfo === 'windows') {
-      // Windows PowerShell 版本
-      const downloadProcess = new Deno.Command('powershell', {
-        args: [
-          '-Command',
-          `Invoke-WebRequest -Uri '${url}' -OutFile '${outputZip}'`,
-        ],
-        stdout: 'piped',
-        stderr: 'piped',
-      });
+    // 获取 zip 文件内容
+    const zipBlob = await response.blob();
 
-      const downloadResult = await downloadProcess.output();
-      if (downloadResult.code !== 0) {
-        throw new Error(
-          `Download failed with exit code ${downloadResult.code}`,
-        );
-      }
+    // 使用 zip-js 解压文件
+    const zipReader = new ZipReader(new BlobReader(zipBlob));
+    const entries = await zipReader.getEntries();
 
-      const extractProcess = new Deno.Command('powershell', {
-        args: [
-          '-Command',
-          `Expand-Archive -Path '${outputZip}' -DestinationPath '${outputDir}'`,
-        ],
-        stdout: 'piped',
-        stderr: 'piped',
-      });
+    // 解压所有文件
+    for (const entry of entries) {
+      const entryPath = join(outputDir, entry.filename);
 
-      const extractResult = await extractProcess.output();
-      if (extractResult.code !== 0) {
-        throw new Error(`Extract failed with exit code ${extractResult.code}`);
-      }
-    } else {
-      // Unix 版本 (Linux, macOS)
-      const downloadProcess = new Deno.Command('curl', { args: ['-o', outputZip, url] });
+      if (entry.directory) {
+        // 创建目录
+        await Deno.mkdir(entryPath, { recursive: true });
+      } else {
+        // 确保父目录存在
+        const parentDir = join(entryPath, '..');
+        await Deno.mkdir(parentDir, { recursive: true });
 
-      const downloadResult = await downloadProcess.output();
-      if (downloadResult.code !== 0) {
-        throw new Error(
-          `Download failed with exit code ${downloadResult.code}`,
-        );
-      }
+        // 提取文件内容
+        const blobWriter = new BlobWriter();
+        const blob = await entry.getData!(blobWriter);
+        const arrayBuffer = await blob.arrayBuffer();
 
-      const extractProcess = new Deno.Command('unzip', { args: [outputZip, '-d', outputDir] });
-
-      const extractResult = await extractProcess.output();
-      if (extractResult.code !== 0) {
-        throw new Error(`Extract failed with exit code ${extractResult.code}`);
+        // 写入文件
+        await Deno.writeFile(entryPath, new Uint8Array(arrayBuffer));
       }
     }
+
+    await zipReader.close();
   } catch (error) {
     throw new Error(
       `Failed to download ${name}/${version}`,
