@@ -111,6 +111,8 @@ export async function statMooncake(
       '-q',
       '--target',
       backend,
+      '--target-dir',
+      `target/${backend}`,
       ...(command === 'test' ? ['--build-only'] : []),
     ]);
     const status = result.success ? Status.Success : Status.Failure;
@@ -177,7 +179,7 @@ export async function runMatrix(
   };
 
   if (shouldRun) {
-    for (const backend of runningBackend) {
+    await Promise.all(runningBackend.map(async (backend) => {
       for (const command of ['check', 'build', 'test'] as MoonCommand[]) {
         result[command][backend] = await statMooncake(
           workdir,
@@ -189,84 +191,78 @@ export async function runMatrix(
           break;
         }
       }
-    }
+    }));
   }
 
   return result;
 }
 
 export async function build(source: Mooncake): Promise<BuildResult> {
-  if (source.type === 'git') {
-    const tmp = await Deno.makeTempDir();
-    try {
-      await gitCloneTo(source.url, tmp, source.rev, tmp);
-      const cbt = await runMatrix(
-        tmp,
-        source,
-        source.runningOs,
-        source.runningBackend,
-      );
-      return {
-        source: {
-          type: 'git',
-          url: source.url,
-          rev: source.rev,
-        },
-        cbt: cbt,
-      };
-    } catch (error) {
-      console.error(`Failed to checkout ${source.rev}:`, error);
-      return {
-        source: {
-          type: 'git',
-          url: source.url,
-          rev: source.rev,
-        },
-        error: (error as Error).message,
-      };
-    } finally {
+  const tmp = await Deno.makeTempDir();
+  try {
+    if (source.type === 'git') {
       try {
-        await Deno.remove(tmp, { recursive: true });
-      } catch {
-        // 忽略清理失败
+        await gitCloneTo(source.url, tmp, source.rev, tmp);
+        const cbt = await runMatrix(
+          tmp,
+          source,
+          source.runningOs,
+          source.runningBackend,
+        );
+        return {
+          source: {
+            type: 'git',
+            url: source.url,
+            rev: source.rev,
+          },
+          cbt: cbt,
+        };
+      } catch (error) {
+        console.error(`Failed to checkout ${source.rev}:`, error);
+        return {
+          source: {
+            type: 'git',
+            url: source.url,
+            rev: source.rev,
+          },
+          error: (error as Error).message,
+        };
+      }
+    } else {
+      try {
+        await downloadTo(source.name, source.version, tmp);
+        const workdir = join(tmp, source.version);
+        const cbt = await runMatrix(
+          workdir,
+          source,
+          source.runningOs,
+          source.runningBackend,
+        );
+        return {
+          source: {
+            type: 'mooncakes',
+            name: source.name,
+            version: source.version,
+          },
+          cbt: cbt,
+        };
+      } catch (error) {
+        console.error(`Failed to download ${source.name}@${source.version}:`, error);
+        return {
+          source: {
+            type: 'mooncakes',
+            name: source.name,
+            version: source.version,
+          },
+          error: (error as Error).message,
+        };
       }
     }
-  } else {
-    const tmp = await Deno.makeTempDir();
+  } finally {
     try {
-      await downloadTo(source.name, source.version, tmp);
-      const workdir = join(tmp, source.version);
-      const cbt = await runMatrix(
-        workdir,
-        source,
-        source.runningOs,
-        source.runningBackend,
-      );
-      return {
-        source: {
-          type: 'mooncakes',
-          name: source.name,
-          version: source.version,
-        },
-        cbt: cbt,
-      };
-    } catch (error) {
-      console.error(`Failed to download ${source.name}@${source.version}:`, error);
-      return {
-        source: {
-          type: 'mooncakes',
-          name: source.name,
-          version: source.version,
-        },
-        error: (error as Error).message,
-      };
-    } finally {
-      // 清理临时目录
-      try {
-        await Deno.remove(tmp, { recursive: true });
-      } catch {
-        // 忽略清理失败
-      }
+      await Deno.remove(tmp, { recursive: true });
+    } catch {
+      // 忽略清理失败
     }
   }
 }
