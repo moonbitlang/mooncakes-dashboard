@@ -39,7 +39,7 @@ export async function runMoon(
     const process = new Deno.Command('moon', { args, cwd: workdir, signal: signal.signal });
     const timeout = setTimeout(() => {
       signal.abort();
-    }, 60000); // 1 minute timeout
+    }, 120000); // 2 minutes timeout
 
     const { stdout, stderr, success } = await process.output();
     clearTimeout(timeout);
