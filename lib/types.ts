@@ -72,20 +72,22 @@ export interface ExecuteResult {
   status: Status;
 }
 
+// Success/Failure 现在不再直接内嵌日志内容，改为引用日志路径，避免巨大 jsonl
 export interface SuccessResult extends ExecuteResult {
   status: Status.Success;
   start_time: string;
   elapsed: number;
-  stdout: string;
-  stderr: string;
+  // 相对于 data/ 目录的路径 (例如: logs/<slug>-check-wasm.out)
+  stdout_path: string;
+  stderr_path: string;
 }
 
 export interface FailureResult extends ExecuteResult {
   status: Status.Failure;
   start_time: string;
   elapsed: number;
-  stdout: string;
-  stderr: string;
+  stdout_path: string;
+  stderr_path: string;
 }
 
 export interface SkippedResult extends ExecuteResult {

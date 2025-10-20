@@ -63,6 +63,46 @@ Subsequent lines: `BuildResult` objects:
 
 Skipped backends/commands use `{"status": "Skipped"}`.
 
+## 🗃 External Log Storage (NEW)
+
+Previously each `Result` embedded full `stdout` and `stderr` strings directly in the JSONL, producing very large files
+and slow initial page loads.
+
+Now logs are written to separate files under `data/logs/` and the JSONL stores lightweight path references:
+
+```jsonc
+// Example Result (success)
+{
+  "status": "Success",
+  "start_time": "2025-10-20 10:00:00",
+  "elapsed": 1234,
+  "stdout_path": "logs/abcd1234ef567890.out.log",
+  "stderr_path": "logs/abcd1234ef567890.err.log"
+}
+```
+
+The file name uses a SHA-256 hash (first 16 hex chars) of the tuple `(type, sourceId, command, backend)` to keep names
+short yet unique:
+
+```
+<hash>.out.log
+<hash>.err.log
+```
+
+Frontend behavior: when you click a cell the UI fetches these two log files on demand instead of constructing a Blob
+from embedded strings. This reduces bandwidth and speeds up initial render.
+
+Benefits:
+
+1. Much smaller `data/*.jsonl` artifacts.
+2. Browser/CDN can cache individual log files.
+3. Faster initial dashboard load with lazy log fetching.
+
+Future migration script (planned): `deno run -A scripts/migrate-logs.ts <old.jsonl> <new.jsonl>` will extract embedded
+logs from older artifacts into `data/logs/` and rewrite each line with path references.
+
+If a log file is missing or fetch fails, the UI displays a clear error message in the opened tab.
+
 ## ⚙️ Configuration Files
 
 - `resources/repos.yml` – whitelist of GitHub repos and mooncakes overrides (OS/backends/version pinning).

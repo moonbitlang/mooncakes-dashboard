@@ -14,12 +14,12 @@ type DataMap = {
 type RowData = {
   identifier: string;
   source: BuildResult['source'];
-  'mac-nightly': BuildResult | null;
-  'mac-stable': BuildResult | null;
-  'linux-nightly': BuildResult | null;
-  'linux-stable': BuildResult | null;
-  'windows-nightly': BuildResult | null;
-  'windows-stable': BuildResult | null;
+  'mac/nightly': BuildResult | null;
+  'mac/stable': BuildResult | null;
+  'linux/nightly': BuildResult | null;
+  'linux/stable': BuildResult | null;
+  'windows/nightly': BuildResult | null;
+  'windows/stable': BuildResult | null;
   label: 'regression' | 'inconsistent' | 'ok' | '';
 };
 
@@ -53,8 +53,8 @@ function getOverallStatus(result: BuildResult | null): 'success' | 'failure' | '
 
 function getLabel(row: RowData): 'regression' | 'inconsistent' | 'ok' | '' {
   const platforms = ['mac', 'linux', 'windows'] as const;
-  const nightlyStatuses = platforms.map((p) => getOverallStatus(row[`${p}-nightly`]));
-  const stableStatuses = platforms.map((p) => getOverallStatus(row[`${p}-stable`]));
+  const nightlyStatuses = platforms.map((p) => getOverallStatus(row[`${p}/nightly`]));
+  const stableStatuses = platforms.map((p) => getOverallStatus(row[`${p}/stable`]));
 
   for (let i = 0; i < platforms.length; i++) {
     if (nightlyStatuses[i] === 'failure' && stableStatuses[i] === 'success') {
@@ -74,62 +74,46 @@ function getLabel(row: RowData): 'regression' | 'inconsistent' | 'ok' | '' {
   return 'ok';
 }
 
-function openLogsInNewTab(
+// 点击单元格时打开新标签并在一个文本中合并 stderr/stdout 信息
+async function openLogsInNewTab(
   result: BuildResult | null,
-  _identifier: string,
   command: 'check' | 'build' | 'test',
   backend: 'wasm' | 'wasm-gc' | 'js' | 'native',
 ) {
   if (!result) return;
-
   let content = '';
-
-  // Add error message if present
   if (result.error) {
     content += `Error: ${result.error}\n\n`;
-  }
-
-  // Get the specific command and backend result
-  if (result.cbt) {
+  } else if (result.cbt) {
     const res = result.cbt[command][backend];
-
     content += `=== ${command.toUpperCase()} - ${backend} ===\n`;
     content += `Status: ${res.status}\n`;
-
-    if (res.status !== 'Skipped') {
+    if (res.status !== 'Skipped' && 'stdout_path' in res && 'stderr_path' in res) {
       if ('start_time' in res) content += `Start Time: ${res.start_time}\n`;
       if ('elapsed' in res) content += `Elapsed: ${res.elapsed}ms\n`;
       content += '\n';
-
-      content += 'STDERR:\n';
-      content += res.stderr;
-      content += '\n\n';
-
-      content += 'STDOUT:\n';
-      content += res.stdout;
-      content += '\n\n';
+      try {
+        const stderrResp = await fetch(`${res.stderr_path}`);
+        const stderrText = stderrResp.ok ? await stderrResp.text() : `Failed to fetch stderr (${stderrResp.status})`;
+        const stdoutResp = await fetch(`${res.stdout_path}`);
+        const stdoutText = stdoutResp.ok ? await stdoutResp.text() : `Failed to fetch stdout (${stdoutResp.status})`;
+        content += 'STDERR:\n' + stderrText + '\n\n';
+        content += 'STDOUT:\n' + stdoutText + '\n\n';
+      } catch (e) {
+        content += `Error fetching logs: ${e instanceof Error ? e.message : String(e)}\n`;
+      }
     }
   }
-
-  if (!content || content.trim() === '') {
-    content = 'No stderr/stdout output available.';
-  }
-
-  // Create blob URL and open in new tab
+  if (!content.trim()) content = 'No stderr/stdout output available.';
   const blob = new Blob([content], { type: 'text/plain;charset=utf8' });
   const url = URL.createObjectURL(blob);
   const newTab = globalThis.open(url, '_blank');
-
-  // Clean up the blob URL after a delay to allow the tab to load
-  if (newTab) {
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  }
+  if (newTab) setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 // Detailed cell for specific command and backend
 function DetailCell({
   result,
-  identifier,
   command,
   backend,
 }: {
@@ -162,7 +146,7 @@ function DetailCell({
   };
 
   const handleClick = () => {
-    openLogsInNewTab(result, identifier, command, backend);
+    openLogsInNewTab(result, command, backend);
   };
 
   return html`
@@ -206,7 +190,7 @@ function App() {
 
       for (const os of ['linux', 'windows', 'mac']) {
         for (const channel of ['nightly', 'stable']) {
-          const key = `${os}-${channel}`;
+          const key = `${os}/${channel}`;
           keys.push(key);
         }
       }
@@ -214,7 +198,7 @@ function App() {
       await Promise.all(
         keys.map(async (key) => {
           try {
-            const response = await fetch(`https://moonbitlang.github.io/mooncakes-dashboard/data/${key}.jsonl`);
+            const response = await fetch(`data/${key}/data.jsonl`);
             const results = [];
             const reader = response.body!.pipeThrough(new TextDecoderStream()).pipeThrough(new TextLineStream())
               .pipeThrough(new JsonParseStream()).getReader();
@@ -251,12 +235,12 @@ function App() {
         identifierMap.set(id, {
           identifier: id,
           source: result.source,
-          'mac-nightly': null,
-          'mac-stable': null,
-          'linux-nightly': null,
-          'linux-stable': null,
-          'windows-nightly': null,
-          'windows-stable': null,
+          'mac/nightly': null,
+          'mac/stable': null,
+          'linux/nightly': null,
+          'linux/stable': null,
+          'windows/nightly': null,
+          'windows/stable': null,
           label: '',
         });
       }
@@ -346,10 +330,9 @@ function App() {
                   channels.map((channel) =>
                     backends.map((backend) =>
                       commands.map((cmd) => {
-                        const result = row[`${platform}-${channel}`];
+                        const result = row[`${platform}/${channel}`];
                         return html`
-                          <${DetailCell} result="${result}" command="${cmd}" backend="${backend}" identifier="${row
-                            .identifier}" />
+                          <${DetailCell} result="${result}" command="${cmd}" backend="${backend}" />
                         `;
                       })
                     )

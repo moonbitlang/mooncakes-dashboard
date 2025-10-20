@@ -19,6 +19,7 @@ import { getMoonVersion, runMoon } from './moon.ts';
 import { gitCloneTo } from './git.ts';
 import { downloadTo, getAllMooncakes } from './mooncakesio.ts';
 import { getExcludeConfig, getReposConfig } from './utils.ts';
+import { join } from '@std/path/join';
 
 export async function getMooncakeSources(
   cmd: StatSubcommand,
@@ -97,14 +98,56 @@ export async function getMooncakeSources(
   return repoList;
 }
 
+async function sha256Hex(input: string): Promise<string> {
+  const data = new TextEncoder().encode(input);
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  const arr = Array.from(new Uint8Array(digest));
+  return arr.map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+async function makeLogSlug(
+  source: Mooncake,
+): Promise<string> {
+  const base = source.type === 'git'
+    ? `${source.type}|${source.url}|${source.rev}`
+    : `${source.type}|${source.name}|${source.version}`;
+  const hash = await sha256Hex(base);
+  return `${hash.slice(0, 16)}`;
+}
+
+async function writeLogFiles(
+  slug: string,
+  dir: string,
+  command: MoonCommand,
+  backend: Backend,
+  stdout: string,
+  stderr: string,
+): Promise<{ stdout_path: string; stderr_path: string }> {
+  try {
+    await Deno.mkdir(join(dir, 'logs'), { recursive: true });
+  } catch (e) {
+    if (!(e instanceof Deno.errors.AlreadyExists)) {
+      throw e;
+    }
+  }
+  const stdoutPath = join(dir, 'logs', `${slug}-${backend}-${command}.out.log`);
+  const stderrPath = join(dir, 'logs', `${slug}-${backend}-${command}.err.log`);
+  await Deno.mkdir(dir, { recursive: true });
+  await Deno.writeTextFile(stdoutPath, stdout).catch((e) => console.error('Failed to write stdout log', stdoutPath, e));
+  await Deno.writeTextFile(stderrPath, stderr).catch((e) => console.error('Failed to write stderr log', stderrPath, e));
+  // jsonl 中希望存储相对于 data/ 的路径，方便前端构造 URL
+  return { stdout_path: stdoutPath, stderr_path: stderrPath };
+}
+
 export async function statMooncake(
   workdir: string,
   source: Mooncake,
   command: MoonCommand,
   backend: Backend,
+  dir: string,
 ): Promise<Result> {
+  const startTime = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
+  const slug = await makeLogSlug(source);
   try {
-    const startTime = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
     const result = await runMoon(workdir, [
       command,
       '--target',
@@ -115,25 +158,30 @@ export async function statMooncake(
       ...(command === 'test' ? ['--build-only'] : []),
     ]);
     const status = result.success ? Status.Success : Status.Failure;
-
+    const paths = await writeLogFiles(slug, dir, command, backend, result.stdout, result.stderr);
     return {
       status,
       start_time: startTime,
       elapsed: result.duration,
-      stdout: result.stdout,
-      stderr: result.stderr,
+      stdout_path: paths.stdout_path,
+      stderr_path: paths.stderr_path,
     };
   } catch (error) {
     console.error(`RUN moon ${command} for ${JSON.stringify(source)}`, error);
-    const now = new Date();
-    const startTime = now.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
-
+    const paths = await writeLogFiles(
+      slug,
+      dir,
+      command,
+      backend,
+      '',
+      error instanceof Error ? error.message : String(error),
+    );
     return {
       status: Status.Failure,
       start_time: startTime,
       elapsed: 0,
-      stdout: '',
-      stderr: error instanceof Error ? error.message : String(error),
+      stdout_path: paths.stdout_path,
+      stderr_path: paths.stderr_path,
     };
   }
 }
@@ -143,6 +191,7 @@ export async function runMatrix(
   source: Mooncake,
   runningOs: OS[],
   runningBackend: Backend[],
+  dir: string,
 ): Promise<CBT> {
   const currentOs = Deno.build.os;
   let shouldRun = false;
@@ -185,6 +234,7 @@ export async function runMatrix(
           source,
           command,
           backend,
+          dir,
         );
         if (result[command][backend].status === Status.Failure) {
           break;
@@ -196,7 +246,7 @@ export async function runMatrix(
   return result;
 }
 
-export async function build(source: Mooncake): Promise<BuildResult> {
+export async function build(source: Mooncake, dir: string): Promise<BuildResult> {
   const tmp = await Deno.makeTempDir();
   try {
     if (source.type === 'git') {
@@ -208,6 +258,7 @@ export async function build(source: Mooncake): Promise<BuildResult> {
           source,
           source.runningOs,
           source.runningBackend,
+          dir,
         );
         return {
           source: {
@@ -237,6 +288,7 @@ export async function build(source: Mooncake): Promise<BuildResult> {
           source,
           source.runningOs,
           source.runningBackend,
+          dir,
         );
         return {
           source: {
@@ -267,7 +319,7 @@ export async function build(source: Mooncake): Promise<BuildResult> {
   }
 }
 
-export async function stat(cmd: StatSubcommand): Promise<{ metadata: MetaData; result: BuildResult[] }> {
+export async function stat(cmd: StatSubcommand, dir: string): Promise<{ metadata: MetaData; result: BuildResult[] }> {
   const runId = Deno.env.get('GITHUB_ACTION_RUN_ID') || '0';
   const runNumber = Deno.env.get('GITHUB_ACTION_RUN_NUMBER') || '0';
 
@@ -278,7 +330,7 @@ export async function stat(cmd: StatSubcommand): Promise<{ metadata: MetaData; r
     const toolchain: ToolChainVersion = moonVersion;
 
     const mooncakeSources = await getMooncakeSources(cmd);
-    const buildResult = await Promise.all(mooncakeSources.map((source) => build(source)));
+    const buildResult = await Promise.all(mooncakeSources.map((source) => build(source, dir)));
 
     return {
       metadata: { runId, runNumber, startTime, toolchainVersion: toolchain },

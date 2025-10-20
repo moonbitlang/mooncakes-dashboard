@@ -74,8 +74,8 @@ jobs:
       - name: Upload data
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.os.name }}-${{ matrix.channel.name }}.jsonl
-          path: './data/${{ matrix.os.name }}-${{ matrix.channel.name }}.jsonl'
+          name: ${{ matrix.os.name }}-${{ matrix.channel.name }}
+          path: './data/${{ matrix.os.name }}/${{ matrix.channel.name }}/'
           if-no-files-found: error
 
   publish-site:
@@ -99,14 +99,13 @@ jobs:
       # Organize data files
       - name: Organize data files
         run: |
-          mkdir -p deno/data
-          # Rename 'latest' to 'stable' to match the expected filenames
-          mv artifacts/mac-stable.jsonl/mac-stable.jsonl data/mac-stable.jsonl
-          mv artifacts/mac-nightly.jsonl/mac-nightly.jsonl data/mac-nightly.jsonl
-          mv artifacts/linux-stable.jsonl/linux-stable.jsonl data/linux-stable.jsonl
-          mv artifacts/linux-nightly.jsonl/linux-nightly.jsonl data/linux-nightly.jsonl
-          mv artifacts/windows-stable.jsonl/windows-stable.jsonl data/windows-stable.jsonl
-          mv artifacts/windows-nightly.jsonl/windows-nightly.jsonl data/windows-nightly.jsonl
+          mkdir -p data/mac/stable data/mac/nightly data/linux/stable data/linux/nightly data/windows/stable data/windows/nightly
+          cp -r artifacts/mac-stable/* data/mac/stable/
+          cp -r artifacts/mac-nightly/* data/mac/nightly/
+          cp -r artifacts/linux-stable/* data/linux/stable/
+          cp -r artifacts/linux-nightly/* data/linux/nightly/
+          cp -r artifacts/windows-stable/* data/windows/stable/
+          cp -r artifacts/windows-nightly/* data/windows/nightly/
 
       # Bundle web.ts to web.js
       - name: Bundle web.js
