@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'https://esm.sh/preact/hooks';
 import { html, render } from 'https://esm.sh/htm/preact';
 import type { BuildResult, MetaData, Result } from './lib/types.ts';
+import { TextLineStream } from '@std/streams/text-line-stream';
+import { JsonParseStream } from '@std/json/parse-stream';
 
 type DataMap = {
   [key: string]: {
@@ -200,30 +202,36 @@ function App() {
   useEffect(() => {
     async function fetchData() {
       const newData: DataMap = {};
+      const keys = [];
 
       for (const os of ['linux', 'windows', 'mac']) {
         for (const channel of ['nightly', 'stable']) {
           const key = `${os}-${channel}`;
-          try {
-            const response = await fetch(`data/${key}.jsonl`);
-            const text = await response.text();
-            const lines = text.trim().split('\n').filter((line) => line);
+          keys.push(key);
+        }
+      }
 
-            if (lines.length === 0) {
-              newData[key] = { metadata: null, results: [] };
-              continue;
+      await Promise.all(
+        keys.map(async (key) => {
+          try {
+            const response = await fetch(`https://moonbitlang.github.io/mooncakes-dashboard/data/${key}.jsonl`);
+            const results = [];
+            const reader = response.body!.pipeThrough(new TextDecoderStream()).pipeThrough(new TextLineStream())
+              .pipeThrough(new JsonParseStream()).getReader();
+            const { value: metadata } = await reader.read();
+            while (true) {
+              const { value, done } = await reader.read();
+              if (done) break;
+              results.push(value as unknown as BuildResult);
             }
 
-            const metadata = JSON.parse(lines[0]) as MetaData;
-            const results = lines.slice(1).map((line) => JSON.parse(line) as BuildResult);
-
-            newData[key] = { metadata, results };
+            newData[key] = { metadata: metadata as unknown as MetaData, results };
           } catch (error) {
             console.error(`Error fetching data for ${key}:`, error);
             newData[key] = { metadata: null, results: [] };
           }
-        }
-      }
+        }),
+      );
 
       setData(newData);
       setLoading(false);
