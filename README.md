@@ -20,17 +20,17 @@ quickly.
 
 ## 🧱 Architecture Overview
 
-| Layer                  | File(s)                                       | Responsibility                                                      |
-| ---------------------- | --------------------------------------------- | ------------------------------------------------------------------- |
-| CLI parsing            | `lib/cli.ts`                                  | Parse args (`--channel`, `--repos`, `--exclude`, `--only`).         |
-| Source discovery       | `lib/core.ts#getMooncakeSources`              | Merge mooncakes index + repos config + exclusions.                  |
-| Mooncakes index access | `lib/mooncakesio.ts`                          | Read local index, filter out test-only packages, discover versions. |
-| Download / clone       | `lib/mooncakesio.ts#downloadTo`, `lib/git.ts` | Fetch package zip or clone git repo at rev.                         |
-| Execution wrapper      | `lib/moon.ts#runMoon`                         | Run `moon` commands with timeout & capture output.                  |
-| Build matrix           | `lib/core.ts#runMatrix`                       | Execute `check/build/test` for each backend on current OS.          |
-| Result aggregation     | `lib/core.ts#stat`                            | Collect metadata (run id, toolchain version, timestamps).           |
-| Type system / schemas  | `lib/types.ts`, `schema.ts`                   | Zod schemas, JSON schema emission.                                  |
-| Web UI                 | `web.ts` + `index.html`                       | Render table, fetch published `.jsonl` artifacts, classify results. |
+| Layer                  | File(s)                                            | Responsibility                                                      |
+| ---------------------- | -------------------------------------------------- | ------------------------------------------------------------------- |
+| CLI parsing            | `lib/cli.ts`                                       | Parse args (`--channel`, `--repos`, `--exclude`, `--only`).         |
+| Source discovery       | `lib/source.ts#getMooncakeSources`                 | Merge mooncakes index + repos config + exclusions.                  |
+| Mooncakes index access | `lib/mooncakesio.ts`                               | Read local index, filter out test-only packages, discover versions. |
+| Download / clone       | `lib/mooncakesio.ts#downloadTo`, `lib/git.ts`      | Fetch package zip or clone git repo at rev.                         |
+| Execution wrapper      | `lib/moon.ts#runMoon`                              | Run `moon` commands with timeout & capture output.                  |
+| Build + log orchestration | `lib/build.ts`, `lib/log.ts`                   | Build matrix execution + per-command log file creation.             |
+| Result aggregation     | `lib/core.ts#stat`                                 | Collect metadata (run id, toolchain version, timestamps).           |
+| Type system / schemas  | `lib/types.ts`, `schema.ts`                        | Zod schemas, JSON schema emission.                                  |
+| Web UI                 | `web.ts` + `index.html`                            | Render table, fetch published `.jsonl` artifacts, classify results. |
 
 ## 📦 Data Format
 
@@ -195,6 +195,7 @@ platforms within a channel → inconsistent.
 - Separation of source discovery and build execution keeps logic modular.
 - Zod schemas ensure config validation early and enable automatic JSON Schema generation.
 - Stateless execution: each source builds in a fresh temp dir, avoiding cross-contamination.
+ - 2025-10 refactor: `core.ts` 精简为仅聚合与调度；新增 `source.ts` / `build.ts` / `log.ts` 分离职责，提升可维护性与测试粒度。
 
 ## 🛠 Troubleshooting
 
