@@ -11,7 +11,7 @@
     "@std/fs": "jsr:@std/fs@^1.0.19",
     "@std/cli": "jsr:@std/cli@^1.0.0",
     "@std/datetime": "jsr:@std/datetime@^0.225.0",
-    "@std/semver": "jsr:@std/semver@^1.0.5",
+    "@std/semver": "jsr:@std/semver@^1.0.6",
     "@std/streams": "jsr:@std/streams@^1.0.12",
     "@std/yaml": "jsr:@std/yaml@^1.0.9",
     "@zip-js/zip-js": "jsr:@zip-js/zip-js@^2.8.8",

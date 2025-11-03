@@ -57,11 +57,19 @@ export async function getMooncakeSources(
         if (sources.exclude.includes(key)) {
           continue;
         }
-        repoList.push({
-          type: 'mooncakesio',
-          name: key,
-          version: semver.format(mooncakes.getLatestVersion(key)),
-        });
+        try {
+          repoList.push({
+            type: 'mooncakesio',
+            name: key,
+            version: semver.format(mooncakes.getLatestVersion(key)),
+          });
+        } catch {
+          console.error(
+            `Failed to get latest version for mooncake: ${key}`,
+            mooncakes.getVersions(key).map(semver.format),
+          );
+          continue;
+        }
       }
     }
 
