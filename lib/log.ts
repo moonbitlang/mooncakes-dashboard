@@ -1,4 +1,4 @@
-import { Backend, MoonCommand, type Mooncake } from './types.ts';
+import { Backend, type Mooncake, MoonCommand } from './types.ts';
 import { join } from '@std/path/join';
 
 // 原 core.ts 中的工具函数抽离：sha256Hex / makeLogSlug / writeLogFiles

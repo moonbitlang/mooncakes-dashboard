@@ -8,6 +8,7 @@ export interface StatSubcommand {
   repos: string;
   exclude: string;
   only?: boolean;
+  maxConcurrentBuilds?: number;
 }
 
 export type MoonBuildDashBoardCli = {
@@ -17,7 +18,7 @@ export type MoonBuildDashBoardCli = {
 
 export function parseCliArgs(args: string[]): MoonBuildDashBoardCli {
   const parsed = parseArgs(args, {
-    string: ['channel', 'repos', 'exclude'],
+    string: ['channel', 'repos', 'exclude', 'max-concurrent-builds'],
     alias: {
       h: 'help',
     },
@@ -35,11 +36,12 @@ SUBCOMMANDS:
     stat    Run statistics on repositories
 
 OPTIONS:
-    --repos <PATH>        Path to repos config file [default: repos.yml]
-    --exclude <PATH>      Path to exclude config file [default: exclude.yml]
-    --channel <CHANNEL>   Channel to use (stable or nightly) [default: stable]
-    --only                Only process the ones listed in repos. For testing.
-    -h, --help            Show this help message
+    --repos <PATH>                        Path to repos config file [default: repos.yml]
+    --exclude <PATH>                      Path to exclude config file [default: exclude.yml]
+    --channel <CHANNEL>                   Channel to use (stable or nightly) [default: stable]
+    --max-concurrent-builds <NUMBER>      Maximum number of concurrent builds [default: 3]
+    --only                                Only process the ones listed in repos. For testing.
+    -h, --help                            Show this help message
 `);
     Deno.exit(0);
   }
@@ -48,7 +50,11 @@ OPTIONS:
   const subcommand = parsed._[0] as string || 'stat';
 
   switch (subcommand) {
-    case 'stat':
+    case 'stat': {
+      const maxConcurrentBuilds = parsed['max-concurrent-builds']
+        ? parseInt(parsed['max-concurrent-builds'], 10)
+        : undefined;
+
       return {
         subcommand: 'stat',
         options: {
@@ -56,8 +62,10 @@ OPTIONS:
           repos: parsed.repos || 'repos.yml',
           exclude: parsed.exclude || 'exclude.yml',
           only: parsed.only || false,
+          maxConcurrentBuilds,
         },
       };
+    }
     default:
       console.error(`Unknown subcommand: ${subcommand}`);
       Deno.exit(1);

@@ -1,4 +1,4 @@
-import { Backend, OS, type Mooncake } from './types.ts';
+import { Backend, type Mooncake, OS } from './types.ts';
 import { StatSubcommand } from './cli.ts';
 import { getExcludeConfig, getReposConfig } from './utils.ts';
 import { getAllMooncakes } from './mooncakesio.ts';

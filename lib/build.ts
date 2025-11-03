@@ -1,8 +1,8 @@
-import { Backend, BuildResult, CBT, MoonCommand, Mooncake, Result, SKIPPED, Status } from './types.ts';
+import { Backend, BuildResult, CBT, Mooncake, MoonCommand, Result, SKIPPED, Status } from './types.ts';
 import { runMoon } from './moon.ts';
 import { gitCloneTo } from './git.ts';
 import { downloadTo } from './mooncakesio.ts';
-import { writeLogFiles, makeLogSlug } from './log.ts';
+import { makeLogSlug, writeLogFiles } from './log.ts';
 
 // 从 core.ts 抽离：statMooncake / runMatrix / build （实现保持原样）
 
@@ -78,7 +78,8 @@ export async function runMatrix(
   };
 
   if (shouldRun) {
-    await Promise.all(runningBackend.map(async (backend) => {
+    // 顺序执行每个 backend 的构建（移除并发控制）
+    for (const backend of runningBackend) {
       for (const command of ['check', 'build', 'test'] as MoonCommand[]) {
         result[command][backend] = await statMooncake(
           workdir,
@@ -91,7 +92,7 @@ export async function runMatrix(
           break;
         }
       }
-    }));
+    }
   }
 
   return result;
@@ -130,7 +131,10 @@ export async function build(source: Mooncake, dir: string): Promise<BuildResult>
         return { source: { type: 'mooncakes', name: source.name, version: source.version }, cbt };
       } catch (error) {
         console.error(`Failed to download ${source.name}@${source.version}:`, error);
-        return { source: { type: 'mooncakes', name: source.name, version: source.version }, error: (error as Error).message };
+        return {
+          source: { type: 'mooncakes', name: source.name, version: source.version },
+          error: (error as Error).message,
+        };
       }
     }
   } finally {
