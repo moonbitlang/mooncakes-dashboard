@@ -52,7 +52,7 @@ export async function getMooncakeSources(
           continue;
         }
         const configs = repos.mooncakes.filter((m) => m.name === mooncake);
-        if (configs.length > 1) {
+        if (configs.length >= 1) {
           for (const config of configs) {
             repoList.push({
               type: 'mooncakesio',
