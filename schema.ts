@@ -1,5 +1,10 @@
 import z from 'zod';
-import { ExcludeConfigSchema, ReposConfigSchema } from './lib/types.ts';
+import { BuildConfigsSchema, SourcesSchema } from './lib/types.ts';
 
-await Deno.writeTextFile('resources/exclude.schema.json', JSON.stringify(z.toJSONSchema(ExcludeConfigSchema)));
-await Deno.writeTextFile('resources/repos.schema.json', JSON.stringify(z.toJSONSchema(ReposConfigSchema)));
+// Generate schemas
+await Deno.writeTextFile('resources/sources.schema.json', JSON.stringify(z.toJSONSchema(SourcesSchema)));
+await Deno.writeTextFile('resources/build-config.schema.json', JSON.stringify(z.toJSONSchema(BuildConfigsSchema)));
+
+console.log('Generated schemas:');
+console.log('  - sources.schema.json');
+console.log('  - build-config.schema.json');

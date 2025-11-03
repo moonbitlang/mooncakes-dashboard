@@ -1,4 +1,89 @@
-# yaml-language-server: $schema=exclude.schema.json
+# yaml-language-server: $schema=sources.schema.json
+# Source Selection Configuration
+# Defines which packages to include/exclude from building
+
+# Include all mooncakes from mooncakes.io registry
+include_all_mooncakes: true
+
+# Git repositories to include
+git-repos:
+  - name: moonlex-for-TAPL
+    link: https://github.com/moonbitlang/moonlex-old
+    branch: master
+  - name: pku-dppl/TAPL-in-MoonBit
+    link: https://github.com/pku-dppl/TAPL-in-MoonBit
+    branch: main
+  - name: oboard/mio
+    link: https://github.com/oboard/mio
+    branch: main
+  - name: AdUhTkJm/moonc
+    link: https://github.com/AdUhTkJm/moonc
+    branch: main
+  - name: WebGPU-Art/quaternion
+    link: https://github.com/WebGPU-Art/quaternion
+    branch: main
+  - name: zxch3n/moon-expect
+    link: https://github.com/zxch3n/moon-expect
+    branch: main
+  - name: moonbit-community/linalg
+    link: https://github.com/moonbit-community/linalg
+    branch: main
+  - name: FlyCloudC/miniKanren
+    link: https://github.com/FlyCloudC/miniKanren
+    branch: main
+  - name: moonbitlang/core
+    link: https://github.com/moonbitlang/core
+    branch: main
+  - name: moonbitlang/x
+    link: https://github.com/moonbitlang/x
+    branch: main
+  - name: moonbitlang/quickcheck
+    link: https://github.com/moonbitlang/quickcheck
+    branch: main
+  - name: moonbit-community/XMLParser
+    link: https://github.com/moonbit-community/XMLParser
+    branch: main
+  - name: moonbitlang/yacc
+    link: https://github.com/moonbitlang/moonyacc
+    branch: master
+  - name: Luna-Flow/linear-algebra
+    link: https://github.com/Luna-Flow/linear-algebra
+    branch: main
+  - name: moonbit-community/dotenv-mbt
+    link: https://github.com/moonbit-community/dotenv-mbt
+    branch: main
+  - name: moonbit-community/cmark
+    link: https://github.com/moonbit-community/cmark
+    branch: main
+  - name: gmlewis/moonbit-fonts
+    link: https://github.com/gmlewis/moonbit-fonts
+    branch: master
+  - name: zhuguiyuan/MoonBit-EDA-Router
+    link: https://github.com/zhuguiyuan/MoonBit-EDA-Router
+    branch: main
+  - name: moonbit-community/pandas
+    link: https://github.com/moonbit-community/pandas
+    branch: main
+  - name: moonbitlang/minimoonbit-public
+    link: https://github.com/moonbitlang/minimoonbit-public
+    branch: main
+  - name: moonbit-community/NyaCSV
+    link: https://github.com/moonbit-community/NyaCSV
+    branch: main
+  - name: moonbit-community/NyaSearch
+    link: https://github.com/moonbit-community/NyaSearch
+    branch: main
+  - name: moonbit-community/sw-ini
+    link: https://github.com/moonbit-community/sw-ini
+    branch: main
+
+# Specific mooncake packages to include (optional, only needed if include_all_mooncakes is false)
+# If include_all_mooncakes is true, this list is merged with all packages from registry
+mooncakes:
+  - name: Milky2018/selene
+    version: '0.10.7'
+
+# Packages to exclude (by name)
 exclude:
   # out of maintenance
   - colmugx/reader

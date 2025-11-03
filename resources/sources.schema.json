@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "git-repos": {
+      "description": "List of Git repositories to include.",
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "link": {
+            "type": "string",
+            "format": "uri"
+          },
+          "branch": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "link",
+          "branch"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "mooncakes": {
+      "description": "List of Mooncake packages to explicitly include.",
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "description": "Name of the Mooncake package.",
+            "type": "string"
+          },
+          "version": {
+            "description": "Specific version to include. If not specified, uses latest version.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "exclude": {
+      "description": "List of Mooncake packages to exclude.",
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "include_all_mooncakes": {
+      "description": "Whether to include all mooncakes from registry (default: true).",
+      "default": true,
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "git-repos",
+    "mooncakes",
+    "exclude",
+    "include_all_mooncakes"
+  ],
+  "additionalProperties": false
+}

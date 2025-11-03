@@ -1,44 +1,71 @@
 // 类型定义，对应 Rust 版本中的 dashboard.rs
 import { z } from 'zod';
 
-// Configurations for modules to be skipped
-export const ExcludeConfigSchema = z.object({
-  exclude: z.array(z.string()),
-});
+// ============================================
+// Build Configuration (build-config.yml)
+// ============================================
 
-export type ExcludeConfig = z.infer<typeof ExcludeConfigSchema>;
-
-// Configuration for repositories
 export const BackendSchema = z.enum(['wasm', 'wasm-gc', 'js', 'native']);
 export type Backend = z.infer<typeof BackendSchema>;
+export const backends = ['wasm', 'wasm-gc', 'js', 'native'] as Backend[];
 
 export const OSSchema = z.enum(['linux', 'macos', 'windows']);
 export type OS = z.infer<typeof OSSchema>;
+export const oses = ['linux', 'macos', 'windows'] as OS[];
 
-export const GitHubSourceSchema = z.object({
+// Build configuration for a specific package/version combination
+export const BuildConfigSchema = z.object({
+  package: z.string().describe('Name of the package this build config applies to.'),
+  version: z.string().describe(
+    'Version constraint to match for this build config. See https://jsr.io/@std/semver#ranges for syntax.',
+  ),
+  running_os: z.array(OSSchema).default(oses).describe(
+    'Operating systems to build on. If not specified, defaults to all supported OSes.',
+  ),
+  running_backend: z.array(BackendSchema).default(backends).describe(
+    'Backends to build on. If not specified, defaults to all supported backends.',
+  ),
+});
+
+export type BuildConfig = z.infer<typeof BuildConfigSchema>;
+
+export const BuildConfigsSchema = z.object({
+  configs: z.array(BuildConfigSchema),
+});
+
+export type BuildConfigs = z.infer<typeof BuildConfigsSchema>;
+
+// ============================================
+// Sources Selection (sources.yml)
+// ============================================
+
+// Git repository source
+export const GitSourceSchema = z.object({
   name: z.string(),
   link: z.url(),
   branch: z.string(),
-  running_os: z.array(OSSchema).optional(),
-  running_backend: z.array(BackendSchema).optional(),
 });
 
+export type GitSource = z.infer<typeof GitSourceSchema>;
+
+// Mooncake package source
 export const MooncakeSourceSchema = z.object({
-  name: z.string(),
-  version: z.string(),
-  running_os: z.array(OSSchema).optional(),
-  running_backend: z.array(BackendSchema).optional(),
+  name: z.string().describe('Name of the Mooncake package.'),
+  version: z.string().default('*').describe("Version constraint to match. Default to '*'"),
 });
 
-export const ReposConfigSchema = z.object({
-  'github-repos': z.array(GitHubSourceSchema),
-  mooncakes: z.array(MooncakeSourceSchema),
+export type MooncakeSource = z.infer<typeof MooncakeSourceSchema>;
+
+export const SourcesSchema = z.object({
+  'git-repos': z.array(GitSourceSchema).default([]).describe('List of Git repositories to include.'),
+  mooncakes: z.array(MooncakeSourceSchema).default([]).describe('List of Mooncake packages to explicitly include.'),
+  exclude: z.array(z.string()).default([]).describe('List of Mooncake packages to exclude.'),
+  include_all_mooncakes: z.boolean().default(true).describe(
+    'Whether to include all mooncakes from registry (default: true).',
+  ),
 });
 
-export type ReposConfig = z.infer<typeof ReposConfigSchema>;
-
-export type GitHubRepo = z.infer<typeof GitHubSourceSchema>;
-export type MooncakeRepo = z.infer<typeof MooncakeSourceSchema>;
+export type Sources = z.infer<typeof SourcesSchema>;
 
 export enum Status {
   Success = 'Success',
@@ -48,8 +75,6 @@ export enum Status {
 
 export interface MoonBitModule {
   type: 'mooncakesio' | 'git';
-  runningOs: OS[];
-  runningBackend: Backend[];
 }
 
 export interface MooncakesModule extends MoonBitModule {

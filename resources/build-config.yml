@@ -1,0 +1,158 @@
+# yaml-language-server: $schema=build-config.schema.json
+# Build Configuration
+# Defines build settings (OS, backends) for packages based on version constraints
+# Packages not listed here will use default settings:
+# - All OS (linux, macos, windows)
+# - All backends (wasm, wasm-gc, js, native)
+configs:
+  - package: BigOrangeQWQ/wasi-cli
+    version: '*' # Match any version
+    running_backend:
+      - wasm
+      - wasm-gc
+
+  - package: BigOrangeQWQ/wasi-clocks
+    version: '*'
+    running_backend:
+      - wasm
+      - wasm-gc
+
+  - package: BigOrangeQWQ/wasi-filesystem
+    version: '*'
+    running_backend:
+      - wasm
+      - wasm-gc
+
+  - package: BigOrangeQWQ/wasi-io
+    version: '*'
+    running_backend:
+      - wasm
+      - wasm-gc
+
+  - package: BigOrangeQWQ/wasi-random
+    version: '*'
+    running_backend:
+      - wasm
+      - wasm-gc
+
+  - package: BigOrangeQWQ/wasi-sockets
+    version: '*'
+    running_backend:
+      - wasm
+      - wasm-gc
+
+  - package: BigOrangeQWQ/wit-ffi
+    version: '*'
+    running_backend:
+      - wasm
+      - wasm-gc
+
+  - package: BigOrangeQWQ/wit-wasi-clocks
+    version: '*'
+    running_backend:
+      - wasm
+      - wasm-gc
+
+  - package: BigOrangeQWQ/wit-wasi-io
+    version: '*'
+    running_backend:
+      - wasm
+      - wasm-gc
+
+  - package: BigOrangeQWQ/wit-wasi-random
+    version: '*'
+    running_backend:
+      - wasm
+      - wasm-gc
+
+  # JS-only packages
+  - package: Nyuudoukumo/uuidv4
+    version: '>=0.2.0' # Any version >= 0.2.0
+    running_backend:
+      - js
+
+  - package: Yoorkin/rabbit-tea
+    version: '^0.10.0' # Compatible with 0.10.x
+    running_backend:
+      - js
+
+  - package: rami3l/js-ffi
+    version: '*'
+    running_backend:
+      - js
+
+  - package: tiye/cirru-edn
+    version: '*'
+    running_backend:
+      - js
+
+  - package: tiye/cirru-parser
+    version: '*'
+    running_backend:
+      - js
+
+  - package: tiye/dom-ffi
+    version: '*'
+    running_backend:
+      - js
+
+  - package: tiye/respo
+    version: '*'
+    running_backend:
+      - js
+
+  - package: tiye/respo-markdown
+    version: '*'
+    running_backend:
+      - js
+
+  - package: tiye/respo-router
+    version: '*'
+    running_backend:
+      - js
+
+  # https://github.com/moonbitlang/moonlex-old
+  - package: moonbitlang/lex
+    version: '*'
+    running_os:
+      - linux
+      - macos
+
+  # https://github.com/pku-dppl/TAPL-in-MoonBit
+  - package: TAPL
+    version: '*'
+    running_os:
+      - linux
+      - macos
+
+  - package: moonbitlang/yacc
+    version: '*'
+    running_os:
+      - linux
+      - macos
+
+  - package: oboard/mio
+    version: '*'
+    running_backend:
+      - js
+
+  - package: moonbitlang/wasm4
+    version: '*'
+    running_backend:
+      - wasm
+      - wasm-gc
+
+  - package: peter-jerry-ye/spin-imports
+    version: '*'
+    running_backend:
+      - wasm
+
+  - package: peter-jerry-ye/wasi
+    version: '*'
+    running_backend:
+      - wasm
+
+  - package: peter-jerry-ye/wasi-imports
+    version: '*'
+    running_backend:
+      - wasm

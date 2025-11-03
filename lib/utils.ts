@@ -1,5 +1,5 @@
 // 自动更新 mooncakes 列表功能，对应 Rust 版本中的 auto_update.rs
-import { type ExcludeConfig, ExcludeConfigSchema, type ReposConfig, ReposConfigSchema } from './types.ts';
+import { BuildConfigs, BuildConfigsSchema, type Sources, SourcesSchema } from './types.ts';
 import * as yaml from '@std/yaml';
 
 /**
@@ -49,24 +49,24 @@ export async function executeWithConcurrency<T>(
   return results;
 }
 
-// 解析排除配置文件
-export async function getExcludeConfig(
-  filePath: string,
-): Promise<ExcludeConfig> {
+// Load sources configuration (sources.yml)
+export async function getSourcesConfig(filePath: string): Promise<Sources> {
   try {
     const content = await Deno.readTextFile(filePath);
-    return ExcludeConfigSchema.parse(yaml.parse(content));
+    return SourcesSchema.parse(yaml.parse(content));
   } catch (error) {
-    console.warn(`Failed to read exclude config from ${filePath}: ${error}`);
-    return { exclude: [] };
+    throw new Error(`Failed to read sources config from ${filePath}: ${error}`);
   }
 }
 
-export async function getReposConfig(filePath: string): Promise<ReposConfig> {
+// Load build configurations (build-config.yml)
+export async function getBuildConfigs(filePath: string): Promise<BuildConfigs> {
   try {
     const content = await Deno.readTextFile(filePath);
-    return ReposConfigSchema.parse(yaml.parse(content));
+    return BuildConfigsSchema.parse(yaml.parse(content));
   } catch (error) {
-    throw new Error(`Failed to read repos config from ${filePath}: ${error}`);
+    console.warn(`Failed to read build config from ${filePath}: ${error}`);
+    // Return empty config if file doesn't exist
+    return { configs: [] };
   }
 }

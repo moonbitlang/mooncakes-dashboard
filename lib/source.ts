@@ -1,81 +1,100 @@
-import { Backend, type Mooncake, OS } from './types.ts';
+import { type Backend, backends, type BuildConfig, type Mooncake, OS, oses } from './types.ts';
 import { StatSubcommand } from './cli.ts';
-import { getExcludeConfig, getReposConfig } from './utils.ts';
+import { getSourcesConfig } from './utils.ts';
 import { getAllMooncakes } from './mooncakesio.ts';
+import * as semver from '@std/semver';
+
+/**
+ * Find build configuration for a package
+ */
+export function findBuildConfig(
+  packageName: string,
+  version: string,
+  buildConfigs: BuildConfig[],
+): { 'running_os': OS[]; 'running_backend': Backend[] } {
+  // Find configs that match this package
+  const matchingConfigs = buildConfigs.filter((config) => config.package === packageName);
+
+  // Find the first config where the version matches the constraint
+  for (const config of matchingConfigs) {
+    try {
+      const range = semver.parseRange(config.version);
+      const semVersion = semver.parse(version);
+      if (semver.satisfies(semVersion, range)) {
+        return {
+          running_os: config.running_os ?? oses,
+          running_backend: config.running_backend ?? backends,
+        };
+      }
+    } catch {
+      console.error(
+        `Failed to parse version or range for package ${packageName} with version ${version} and config version ${config.version}`,
+      );
+      continue;
+    }
+  }
+  return {
+    running_os: oses,
+    running_backend: backends,
+  };
+}
 
 /**
  * 获取待处理的 Mooncake 数据源列表。
- * 逻辑来源自原 `core.ts` 中的 `getMooncakeSources`，实现未改动，仅抽离文件。
+ * Loads sources from sources.yml and applies build configs from build-config.yml
  */
 export async function getMooncakeSources(
   cmd: StatSubcommand,
 ): Promise<Mooncake[]> {
   const repoList: Mooncake[] = [];
-  const defaultRunningOs: OS[] = ['linux', 'macos', 'windows'];
-  const defaultRunningBackend: Backend[] = ['wasm', 'wasm-gc', 'js', 'native'];
 
   try {
-    const repos = await getReposConfig(cmd.repos);
-    const exclude = await getExcludeConfig(cmd.exclude);
+    const sources = await getSourcesConfig(cmd.sources || 'resources/sources.yml');
     const mooncakes = await getAllMooncakes();
 
-    // White list github repos; no need to exclude
-    for (const repo of repos['github-repos']) {
-      repoList.push({
-        type: 'git',
-        url: repo.link,
-        rev: repo.branch,
-        runningOs: repo.running_os || defaultRunningOs,
-        runningBackend: repo.running_backend || defaultRunningBackend,
-      });
-    }
-    if (cmd.only) {
-      // Debug: only process listed mooncakes
-      for (const r of repos['mooncakes']) {
-        if (exclude.exclude.some((m) => m === r.name)) {
-          console.warn(`Skipping excluded mooncake: ${r.name}`);
+    if (sources.include_all_mooncakes) {
+      for (const key of mooncakes.keys()) {
+        if (sources.exclude.includes(key)) {
           continue;
         }
         repoList.push({
           type: 'mooncakesio',
-          name: r.name,
-          version: r.version,
-          runningOs: r.running_os || defaultRunningOs,
-          runningBackend: r.running_backend || defaultRunningBackend,
+          name: key,
+          version: semver.format(mooncakes.getLatestVersion(key)),
         });
       }
-    } else {
-      // Include all mooncakes from mooncakes.io by default
-      for (const mooncake of mooncakes.keys()) {
-        if (exclude.exclude.some((m) => m === mooncake)) {
-          console.warn(`Skipping excluded mooncake: ${mooncake}`);
-          continue;
-        }
-        const configs = repos.mooncakes.filter((m) => m.name === mooncake);
-        if (configs.length >= 1) {
-          for (const config of configs) {
-            repoList.push({
-              type: 'mooncakesio',
-              name: mooncake,
-              version: config.version,
-              runningOs: config.running_os || defaultRunningOs,
-              runningBackend: config.running_backend || defaultRunningBackend,
-            });
-          }
-        } else {
-          repoList.push({
-            type: 'mooncakesio',
-            name: mooncake,
-            version: mooncakes.getLatestVersion(mooncake),
-            runningOs: defaultRunningOs,
-            runningBackend: defaultRunningBackend,
-          });
-        }
+    }
+
+    for (const gitRepo of sources['git-repos']) {
+      repoList.push({
+        type: 'git',
+        url: gitRepo.link,
+        rev: gitRepo.branch,
+      });
+    }
+
+    for (const included of sources.mooncakes) {
+      if (sources.exclude.includes(included.name)) {
+        continue;
+      }
+      try {
+        const range = semver.parseRange(included.version || '*');
+        repoList.push({
+          type: 'mooncakesio',
+          name: included.name,
+          version: semver.format(semver.maxSatisfying(mooncakes.getVersions(included.name), range)!),
+        });
+      } catch {
+        console.error(
+          `Failed to parse version range for included mooncake: ${included.name} with version constraint: ${included.version}`,
+        );
+        continue;
       }
     }
   } catch (error) {
     throw new Error(`Failed to get mooncake sources: ${error}`);
   }
+
   console.info(`Total mooncake sources to process: ${repoList.length}`);
   return repoList;
 }

@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "configs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "package": {
+            "description": "Name of the package this build config applies to.",
+            "type": "string"
+          },
+          "version": {
+            "description": "Version constraint to match for this build config. See https://jsr.io/@std/semver#ranges for syntax.",
+            "type": "string"
+          },
+          "running_os": {
+            "description": "Operating systems to build on. If not specified, defaults to all supported OSes.",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "linux",
+                "macos",
+                "windows"
+              ]
+            }
+          },
+          "running_backend": {
+            "description": "Backends to build on. If not specified, defaults to all supported backends.",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "wasm",
+                "wasm-gc",
+                "js",
+                "native"
+              ]
+            }
+          }
+        },
+        "required": [
+          "package",
+          "version"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "configs"
+  ],
+  "additionalProperties": false
+}

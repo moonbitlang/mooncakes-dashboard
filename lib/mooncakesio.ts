@@ -4,6 +4,9 @@ import { TextLineStream } from '@std/streams';
 import { JsonParseStream } from '@std/json';
 import * as fs from '@std/fs';
 import { BlobReader, BlobWriter, ZipReader } from '@zip-js/zip-js';
+import { SemVer } from '@std/semver/types';
+import { parse } from '@std/semver/parse';
+import { maxSatisfying, parseRange } from '@std/semver';
 
 const BASE_URL = 'https://moonbitlang-mooncakes.s3.us-west-2.amazonaws.com/user';
 
@@ -97,14 +100,23 @@ export interface MooncakeInfo {
 }
 
 export class MooncakesDB {
-  public db: Map<string, string[]> = new Map();
+  public db: Map<string, SemVer[]> = new Map();
 
-  getLatestVersion(name: string): string {
+  getLatestVersion(name: string): SemVer {
     const versions = this.db.get(name);
     if (!versions || versions.length === 0) {
       throw new Error(`No versions found for mooncake: ${name}`);
     }
-    return versions[versions.length - 1];
+    const range = parseRange('*');
+    return maxSatisfying(versions, range)!;
+  }
+
+  getVersions(name: string): SemVer[] {
+    const versions = this.db.get(name);
+    if (!versions) {
+      throw new Error(`No versions found for mooncake: ${name}`);
+    }
+    return versions;
   }
 
   containsKey(name: string): boolean {
@@ -133,14 +145,18 @@ export async function getAllMooncakes(): Promise<MooncakesDB> {
       try {
         using indexContent = await Deno.open(entry.path);
         let isMooncakesTest = false;
-        const indexes: string[] = [];
+        const indexes: SemVer[] = [];
         await indexContent.readable
           .pipeThrough(new TextDecoderStream())
           .pipeThrough(new TextLineStream())
           .pipeThrough(new JsonParseStream()).pipeTo(
             new WritableStream<any>({
               write(obj: MooncakeInfo) {
-                indexes.push(obj.version);
+                try {
+                  indexes.push(parse(obj.version));
+                } catch {
+                  console.error('Failed to parse version:', obj.version, 'package', name);
+                }
                 if (obj.keywords?.includes('mooncakes-test')) {
                   isMooncakesTest = true;
                 }

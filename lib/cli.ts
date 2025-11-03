@@ -5,10 +5,9 @@ import { parseArgs } from '@std/cli/parse-args';
 
 export interface StatSubcommand {
   channel: 'stable' | 'nightly';
-  repos: string;
-  exclude: string;
-  only?: boolean;
   maxConcurrentBuilds?: number;
+  sources?: string;
+  buildConfig?: string;
 }
 
 export type MoonBuildDashBoardCli = {
@@ -18,11 +17,11 @@ export type MoonBuildDashBoardCli = {
 
 export function parseCliArgs(args: string[]): MoonBuildDashBoardCli {
   const parsed = parseArgs(args, {
-    string: ['channel', 'repos', 'exclude', 'max-concurrent-builds'],
+    string: ['channel', 'sources', 'build-config', 'max-concurrent-builds'],
     alias: {
       h: 'help',
     },
-    boolean: ['help', 'only'],
+    boolean: ['help'],
   });
 
   if (parsed.help) {
@@ -30,17 +29,16 @@ export function parseCliArgs(args: string[]): MoonBuildDashBoardCli {
 Moon Build Dashboard CLI
 
 USAGE:
-    deno run -A src/main.ts stat [OPTIONS]
+    deno run -A main.ts stat [OPTIONS]
 
 SUBCOMMANDS:
     stat    Run statistics on repositories
 
 OPTIONS:
-    --repos <PATH>                        Path to repos config file [default: repos.yml]
-    --exclude <PATH>                      Path to exclude config file [default: exclude.yml]
+    --sources <PATH>                      Path to sources config file [default: resources/sources.yml]
+    --build-config <PATH>                 Path to build config file [default: resources/build-config.yml]
     --channel <CHANNEL>                   Channel to use (stable or nightly) [default: stable]
     --max-concurrent-builds <NUMBER>      Maximum number of concurrent builds [default: 3]
-    --only                                Only process the ones listed in repos. For testing.
     -h, --help                            Show this help message
 `);
     Deno.exit(0);
@@ -59,9 +57,8 @@ OPTIONS:
         subcommand: 'stat',
         options: {
           channel: (parsed.channel === 'nightly' ? 'nightly' : 'stable') as 'stable' | 'nightly',
-          repos: parsed.repos || 'repos.yml',
-          exclude: parsed.exclude || 'exclude.yml',
-          only: parsed.only || false,
+          sources: parsed.sources,
+          buildConfig: parsed['build-config'],
           maxConcurrentBuilds,
         },
       };

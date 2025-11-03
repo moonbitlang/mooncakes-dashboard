@@ -1,8 +1,10 @@
-import { Backend, BuildResult, CBT, Mooncake, MoonCommand, Result, SKIPPED, Status } from './types.ts';
+import { Backend, BuildConfigs, BuildResult, CBT, Mooncake, MoonCommand, Result, SKIPPED, Status } from './types.ts';
 import { runMoon } from './moon.ts';
 import { gitCloneTo } from './git.ts';
 import { downloadTo } from './mooncakesio.ts';
 import { makeLogSlug, writeLogFiles } from './log.ts';
+import { findBuildConfig } from './source.ts';
+import { join } from '@std/path';
 
 // 从 core.ts 抽离：statMooncake / runMatrix / build （实现保持原样）
 
@@ -98,18 +100,23 @@ export async function runMatrix(
   return result;
 }
 
-export async function build(source: Mooncake, dir: string): Promise<BuildResult> {
+export async function build(source: Mooncake, dir: string, build_config: BuildConfigs): Promise<BuildResult> {
   const tmp = await Deno.makeTempDir();
+
   try {
     if (source.type === 'git') {
       try {
         await gitCloneTo(source.url, tmp, source.rev, tmp);
         await runMoon(tmp, ['install']);
+        const config = JSON.parse(await Deno.readTextFile(join(tmp, 'moon.mod.json')));
+        const name = config.name as string;
+        const version = config.version as string;
+        const buildConfig = findBuildConfig(name, version, build_config.configs);
         const cbt = await runMatrix(
           tmp,
           source,
-          source.runningOs,
-          source.runningBackend,
+          buildConfig.running_os,
+          buildConfig.running_backend,
           dir,
         );
         return { source: { type: 'git', url: source.url, rev: source.rev }, cbt };
@@ -121,11 +128,12 @@ export async function build(source: Mooncake, dir: string): Promise<BuildResult>
       try {
         await downloadTo(source.name, source.version, tmp);
         await runMoon(tmp, ['install']);
+        const buildConfig = findBuildConfig(source.name, source.version, build_config.configs);
         const cbt = await runMatrix(
           tmp,
           source,
-          source.runningOs,
-          source.runningBackend,
+          buildConfig.running_os,
+          buildConfig.running_backend,
           dir,
         );
         return { source: { type: 'mooncakes', name: source.name, version: source.version }, cbt };

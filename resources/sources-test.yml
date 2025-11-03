@@ -1,0 +1,21 @@
+# yaml-language-server: $schema=sources.schema.json
+# Source Selection Configuration
+# Defines which packages to include/exclude from building
+
+# Include all mooncakes from mooncakes.io registry
+include_all_mooncakes: false
+git-repos:
+  - name: moonlex-for-TAPL
+    link: https://github.com/moonbitlang/moonlex-old
+    branch: master
+mooncakes:
+  - name: Milky2018/selene
+    version: "^0.13.0"
+  - name: AXiX-official/xxhash
+    version: 0.1.0
+  - name: amor2025/biginteger
+    version: 0.1.0
+  - name: BigOrangeQWQ/wit-wasi-io
+    version: 0.2.*
+
+exclude: []

@@ -6,7 +6,7 @@ import { StatSubcommand } from './cli.ts';
 import { getMoonVersion } from './moon.ts';
 import { getMooncakeSources } from './source.ts';
 import { build } from './build.ts';
-import { executeWithConcurrency } from './utils.ts';
+import { executeWithConcurrency, getBuildConfigs } from './utils.ts';
 
 // 默认最大并发构建数量，可通过环境变量 MAX_CONCURRENT_BUILDS 覆盖
 const DEFAULT_MAX_CONCURRENT_BUILDS = 3;
@@ -18,6 +18,7 @@ export async function stat(cmd: StatSubcommand, dir: string): Promise<{ metadata
   // 优先使用 CLI 参数，其次是环境变量，最后是默认值
   const maxConcurrentBuilds = cmd.maxConcurrentBuilds ??
     parseInt(Deno.env.get('MAX_CONCURRENT_BUILDS') || String(DEFAULT_MAX_CONCURRENT_BUILDS), 10);
+  const configs = await getBuildConfigs(cmd.buildConfig || 'resources/build-config.yml');
 
   const startTime = new Date().toISOString();
 
@@ -28,7 +29,7 @@ export async function stat(cmd: StatSubcommand, dir: string): Promise<{ metadata
     const mooncakeSources = await getMooncakeSources(cmd);
 
     const buildResult = await executeWithConcurrency(
-      mooncakeSources.map((source) => () => build(source, dir)),
+      mooncakeSources.map((source) => () => build(source, dir, configs)),
       maxConcurrentBuilds,
     );
 
