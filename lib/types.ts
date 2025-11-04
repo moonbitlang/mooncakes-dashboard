@@ -19,10 +19,10 @@ export const BuildConfigSchema = z.object({
   version: z.string().describe(
     'Version constraint to match for this build config. See https://jsr.io/@std/semver#ranges for syntax.',
   ),
-  running_os: z.array(OSSchema).default(oses).describe(
+  running_os: z.array(OSSchema).optional().describe(
     'Operating systems to build on. If not specified, defaults to all supported OSes.',
   ),
-  running_backend: z.array(BackendSchema).default(backends).describe(
+  running_backend: z.array(BackendSchema).optional().describe(
     'Backends to build on. If not specified, defaults to all supported backends.',
   ),
 });

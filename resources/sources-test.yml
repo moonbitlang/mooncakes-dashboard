@@ -10,7 +10,7 @@ git-repos:
     branch: master
 mooncakes:
   - name: Milky2018/selene
-    version: "^0.13.0"
+    version: '^0.13.0'
   - name: AXiX-official/xxhash
     version: 0.1.0
   - name: amor2025/biginteger
