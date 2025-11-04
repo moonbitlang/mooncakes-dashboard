@@ -105,52 +105,132 @@ If a log file is missing or fetch fails, the UI displays a clear error message i
 
 ## ⚙️ Configuration Files
 
-- `resources/repos.yml` – whitelist of GitHub repos and mooncakes overrides (OS/backends/version pinning).
-- `resources/exclude.yml` – list of mooncakes to skip globally.
-- `schema.ts` – emits JSON Schemas: `resources/repos.schema.json`, `resources/exclude.schema.json`.
+- `resources/sources.yml` – configuration of package sources (Git repos and mooncakes packages).
+- `resources/build-config.yml` – per-package build configuration (OS/backends/version constraints).
+- `schema.ts` – emits JSON Schemas: `resources/sources.schema.json`, `resources/build-config.schema.json`.
 
 Run schema generation:
 
 ```sh
-deno run -A schema.ts
+deno run -A main.ts schema
 ```
 
-### repos.yml Structure (simplified)
+### sources.yml Structure (simplified)
 
 ```yaml
-github-repos:
-	- name: corelib
-		link: https://github.com/moonbitlang/corelib
-		branch: main
-		running_os: [linux, macos]
-		running_backend: [wasm, native]
+git-repos:
+  - name: corelib
+    link: https://github.com/moonbitlang/corelib
+    branch: main
 mooncakes:
-	- name: foo
-		version: 1.2.3
-		running_os: [linux, macos, windows]
-		running_backend: [wasm, wasm-gc, js, native]
+  - name: foo
+    version: '1.2.3'
+exclude:
+  - deprecated-package
+include_all_mooncakes: true
+```
+
+### build-config.yml Structure (simplified)
+
+```yaml
+configs:
+  - package: foo
+    version: '>=1.0.0'
+    running_os: [linux, macos]
+    running_backend: [wasm, native]
 ```
 
 ## 🚀 Running the Collector
 
+The tool now provides a unified CLI with three subcommands: `stat`, `analyze`, and `schema`.
+
+### Prerequisites
+
 Requires the MoonBit toolchain (`moon` executable) in PATH and populated `~/.moon/registry/index/user`.
 
-Stat run (default channel=stable):
+### Usage
 
 ```sh
-deno run -A main.ts stat --channel nightly --repos resources/repos.yml --exclude resources/exclude.yml
+deno run -A main.ts <SUBCOMMAND> [OPTIONS]
 ```
 
-Generates: `data/<os>-<channel>.jsonl` for the current OS only. (CI runs across all OS variants.)
+### Available Subcommands
 
-### Options
+#### 1. `stat` - Run Statistics on Repositories
 
-- `--channel stable|nightly` – choose toolchain channel under test.
-- `--repos PATH` – repos configuration file (default `repos.yml`).
-- `--exclude PATH` – exclusion list (default `exclude.yml`).
-- `--only` – only process entries explicitly listed in repos.yml (skip full index scan). Useful for debugging.
-- `--max-concurrent-builds NUMBER` – maximum number of concurrent package builds (default: 3). Controls how many
-  packages can be built simultaneously.
+Collects build statistics across all configured packages and generates JSONL data files.
+
+```sh
+deno run -A main.ts stat --channel nightly --sources resources/sources.yml --build-config resources/build-config.yml
+```
+
+**Options:**
+
+- `--sources PATH` - Path to sources config file (default: `resources/sources.yml`)
+- `--build-config PATH` - Path to build config file (default: `resources/build-config.yml`)
+- `--channel stable|nightly` - Channel to use (default: `stable`)
+- `--max-concurrent-builds NUMBER` - Maximum number of concurrent builds (default: 3)
+
+Generates: `data/<os>/<channel>/data.jsonl` for the current OS only. (CI runs across all OS variants.)
+
+#### 2. `analyze` - Analyze Build Logs for Patterns
+
+Search build logs for specific patterns like old operator overloads, library usage, etc.
+
+**Simple Analysis Mode** (quick failures/slow builds):
+
+```sh
+deno run -A main.ts analyze --file data/mac/nightly/data.jsonl
+```
+
+**Pattern Search Mode** (comprehensive log analysis):
+
+```sh
+# Use predefined patterns
+deno run -A main.ts analyze --predefined old_operators
+
+# Custom patterns
+deno run -A main.ts analyze --patterns op_add op_mul @immut/list
+
+# With regex
+deno run -A main.ts analyze --patterns "op_\w+" --regex
+
+# Export to CSV
+deno run -A main.ts analyze --predefined old_operators --csv results.csv
+
+# Simple output (package names only)
+deno run -A main.ts analyze --predefined old_operators --simple
+```
+
+**Options:**
+
+- `-f, --file PATH` - Analyze a single data.jsonl file (simple mode: shows failures and slow builds)
+- `-p, --patterns PATTERN...` - Patterns to search for (can be specified multiple times)
+- `-d, --predefined SET` - Use predefined pattern set: `old_operators`, `immut_list`, `moonbitlang_core`, `json_usage`
+- `-r, --regex` - Treat patterns as regular expressions
+- `-s, --simple` - Simple output mode (package names only)
+- `-c, --csv FILENAME` - Export results to CSV file
+- `-D, --data-dir PATH` - Data directory path (default: `data`)
+
+**Predefined Pattern Sets:**
+
+- `old_operators` - Old operator overload syntax (op_add, op_mul, etc.)
+- `immut_list` - Usage of @immut/list package
+- `moonbitlang_core` - Usage of @moonbitlang/core package
+- `json_usage` - JSON-related functionality usage
+
+#### 3. `schema` - Generate JSON Schemas
+
+Generates JSON schema files for configuration validation.
+
+```sh
+deno run -A main.ts schema
+```
+
+Generates:
+
+- `resources/sources.schema.json`
+- `resources/build-config.schema.json`
 
 ### Concurrency Control
 
@@ -186,21 +266,6 @@ external dependencies:
 
 Within each package, different backend targets (wasm, js, native, etc.) are built sequentially to avoid resource
 contention.
-
-## 📊 Analyzing Results Locally
-
-The `analyze.ts` helper can scan a produced file and print slow (>1000ms) or failing tasks:
-
-```sh
-deno run -A analyze.ts data/linux-nightly.jsonl
-```
-
-Example output lines:
-
-```
-failed https://github.com/... - build - wasm
-slow foo@1.2.3 - test - native - 2150ms
-```
 
 ## 🌐 Web Dashboard
 

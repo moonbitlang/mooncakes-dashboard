@@ -17,6 +17,11 @@
           },
           "running_os": {
             "description": "Operating systems to build on. If not specified, defaults to all supported OSes.",
+            "default": [
+              "linux",
+              "macos",
+              "windows"
+            ],
             "type": "array",
             "items": {
               "type": "string",
@@ -29,6 +34,12 @@
           },
           "running_backend": {
             "description": "Backends to build on. If not specified, defaults to all supported backends.",
+            "default": [
+              "wasm",
+              "wasm-gc",
+              "js",
+              "native"
+            ],
             "type": "array",
             "items": {
               "type": "string",
@@ -43,7 +54,9 @@
         },
         "required": [
           "package",
-          "version"
+          "version",
+          "running_os",
+          "running_backend"
         ],
         "additionalProperties": false
       }

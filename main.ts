@@ -3,6 +3,9 @@ import { join } from '@std/path/join';
 import { parseCliArgs } from './lib/cli.ts';
 import { stat } from './lib/core.ts';
 import { JsonStringifyStream } from '@std/json';
+import { analyze } from './analyze.ts';
+import z from 'zod';
+import { BuildConfigsSchema, SourcesSchema } from './lib/types.ts';
 
 // assume pwd is in the `deno` directory
 
@@ -51,6 +54,22 @@ try {
       )
         .pipeTo(file.writable);
     }
+  } else if (cli.subcommand === 'analyze') {
+    await analyze(cli.options);
+  } else if (cli.subcommand === 'schema') {
+    // Generate schemas
+    await Deno.writeTextFile(
+      'resources/sources.schema.json',
+      JSON.stringify(z.toJSONSchema(SourcesSchema), null, 2),
+    );
+    await Deno.writeTextFile(
+      'resources/build-config.schema.json',
+      JSON.stringify(z.toJSONSchema(BuildConfigsSchema), null, 2),
+    );
+
+    console.log('Generated schemas:');
+    console.log('  - resources/sources.schema.json');
+    console.log('  - resources/build-config.schema.json');
   }
 } catch (error) {
   console.error('Error running moon-build-dashboard:', error);

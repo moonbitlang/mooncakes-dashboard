@@ -69,7 +69,7 @@ jobs:
 
       - name: Build
         run: |
-          deno run -A main.ts --sources resources/sources.yml --build-config resources/build-config.yml --channel ${{ matrix.channel.name }} --max-concurrent-builds 4
+          deno run -A main.ts stat --sources resources/sources.yml --build-config resources/build-config.yml --channel ${{ matrix.channel.name }} --max-concurrent-builds 4
 
       - name: Upload data
         uses: actions/upload-artifact@v4

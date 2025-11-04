@@ -40,12 +40,14 @@
             "type": "string"
           },
           "version": {
-            "description": "Specific version to include. If not specified, uses latest version.",
+            "description": "Version constraint to match. Default to '*'",
+            "default": "*",
             "type": "string"
           }
         },
         "required": [
-          "name"
+          "name",
+          "version"
         ],
         "additionalProperties": false
       }
