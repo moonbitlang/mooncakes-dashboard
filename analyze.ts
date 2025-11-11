@@ -152,91 +152,87 @@ async function analyzePackages(
 
       console.log(`处理 ${platform}/${version}...`);
 
-      const file = await Deno.open(jsonlFile, { read: true });
+      using file = await Deno.open(jsonlFile, { read: true });
 
-      try {
-        const lines: BuildResult[] = [];
-        await file.readable
-          .pipeThrough(new TextDecoderStream())
-          .pipeThrough(new TextLineStream())
-          .pipeThrough(new JsonParseStream())
-          .pipeTo(
-            new WritableStream({
-              write(chunk) {
-                lines.push(chunk as unknown as BuildResult);
-              },
-            }),
-          );
+      const lines: BuildResult[] = [];
+      await file.readable
+        .pipeThrough(new TextDecoderStream())
+        .pipeThrough(new TextLineStream())
+        .pipeThrough(new JsonParseStream())
+        .pipeTo(
+          new WritableStream({
+            write(chunk) {
+              lines.push(chunk as unknown as BuildResult);
+            },
+          }),
+        );
 
-        for (const entry of lines) {
-          // 跳过元数据行
-          if (!('source' in entry)) {
-            continue;
-          }
+      for (const entry of lines) {
+        // 跳过元数据行
+        if (!('source' in entry)) {
+          continue;
+        }
 
-          const { packageName, packageUrl } = getPackageInfo(entry);
-          totalPackages++;
+        const { packageName, packageUrl } = getPackageInfo(entry);
+        totalPackages++;
 
-          // 检查所有日志文件
-          const cbt = entry.cbt;
-          if (!cbt) continue;
+        // 检查所有日志文件
+        const cbt = entry.cbt;
+        if (!cbt) continue;
 
-          for (const phase of ['check', 'build', 'test'] as const) {
-            const phaseData = cbt[phase];
-            if (!phaseData) continue;
+        for (const phase of ['check', 'build', 'test'] as const) {
+          const phaseData = cbt[phase];
+          if (!phaseData) continue;
 
-            for (const target of ['wasm', 'wasm-gc', 'js', 'native'] as const) {
-              const targetData = phaseData[target];
-              if (!targetData) continue;
+          for (const target of ['wasm', 'wasm-gc', 'js', 'native'] as const) {
+            const targetData = phaseData[target];
+            if (!targetData) continue;
 
-              for (const logType of ['stdout_path', 'stderr_path'] as const) {
-                if (targetData.status === Status.Skipped) continue;
+            for (const logType of ['stdout_path', 'stderr_path'] as const) {
+              if (targetData.status === Status.Skipped) continue;
 
-                const result = targetData as SuccessResult | FailureResult;
-                const logRelPath = result[logType];
-                if (logRelPath) {
-                  const logFullPath = join(
-                    platformDataDir,
-                    logRelPath.replace(`data/${platform}/${version}/`, ''),
+              const result = targetData as SuccessResult | FailureResult;
+              const logRelPath = result[logType];
+              if (logRelPath) {
+                const logFullPath = join(
+                  platformDataDir,
+                  logRelPath.replace(`data/${platform}/${version}/`, ''),
+                );
+
+                if (await exists(logFullPath)) {
+                  totalLogsChecked++;
+                  const foundPatterns = await searchPatternsInLog(
+                    logFullPath,
+                    patterns,
+                    useRegex,
                   );
 
-                  if (await exists(logFullPath)) {
-                    totalLogsChecked++;
-                    const foundPatterns = await searchPatternsInLog(
-                      logFullPath,
-                      patterns,
-                      useRegex,
-                    );
-
-                    if (foundPatterns.size > 0) {
-                      if (!problematicPackages.has(packageUrl)) {
-                        problematicPackages.set(packageUrl, {
-                          name: packageName,
-                          patterns: new Set(),
-                          platforms: new Set(),
-                          logFiles: [],
-                          logCount: 0,
-                        });
-                      }
-
-                      const info = problematicPackages.get(packageUrl)!;
-                      foundPatterns.forEach((p) => info.patterns.add(p));
-                      info.platforms.add(`${platform}/${version}`);
-
-                      if (outputDetail) {
-                        info.logFiles.push(logFullPath);
-                      }
-
-                      info.logCount++;
+                  if (foundPatterns.size > 0) {
+                    if (!problematicPackages.has(packageUrl)) {
+                      problematicPackages.set(packageUrl, {
+                        name: packageName,
+                        patterns: new Set(),
+                        platforms: new Set(),
+                        logFiles: [],
+                        logCount: 0,
+                      });
                     }
+
+                    const info = problematicPackages.get(packageUrl)!;
+                    foundPatterns.forEach((p) => info.patterns.add(p));
+                    info.platforms.add(`${platform}/${version}`);
+
+                    if (outputDetail) {
+                      info.logFiles.push(logFullPath);
+                    }
+
+                    info.logCount++;
                   }
                 }
               }
             }
           }
         }
-      } finally {
-        file.close();
       }
     }
   }
