@@ -19,7 +19,6 @@ export interface AnalyzeOptions {
   patterns?: string[];
   predefined?: 'old_operators' | 'immut_list' | 'moonbitlang_core' | 'json_usage';
   regex?: boolean;
-  simple?: boolean;
   csv?: string;
   dataDir: string;
   file?: string;
@@ -125,7 +124,6 @@ function getPackageInfo(entry: BuildResult): { packageName: string; packageUrl: 
 async function analyzePackages(
   patterns: string[],
   useRegex: boolean,
-  outputDetail: boolean,
   dataDir: string,
 ): Promise<{
   problematicPackages: Map<string, PackageInfo>;
@@ -221,11 +219,7 @@ async function analyzePackages(
                     const info = problematicPackages.get(packageUrl)!;
                     foundPatterns.forEach((p) => info.patterns.add(p));
                     info.platforms.add(`${platform}/${version}`);
-
-                    if (outputDetail) {
-                      info.logFiles.push(logFullPath);
-                    }
-
+                    info.logFiles.push(logFullPath);
                     info.logCount++;
                   }
                 }
@@ -248,7 +242,6 @@ function printResults(
   problematicPackages: Map<string, PackageInfo>,
   totalPackages: number,
   totalLogsChecked: number,
-  simpleMode: boolean,
 ) {
   console.log('\n' + '='.repeat(80));
   console.log('分析结果');
@@ -278,44 +271,34 @@ function printResults(
     console.log(`${pattern.padEnd(20)}: 在 ${count} 个包中使用`);
   }
 
-  // 显示匹配的包
-  if (simpleMode) {
-    console.log('\n匹配的包列表:');
-    console.log('-'.repeat(40));
-    const sortedPackages = Array.from(problematicPackages.entries()).sort((a, b) => a[1].name.localeCompare(b[1].name));
-    sortedPackages.forEach(([_url, info], i) => {
-      console.log(`${String(i + 1).padStart(2)}. ${info.name}`);
-    });
-  } else {
-    // 按使用频率排序显示详细信息
-    const sortedPackages = Array.from(problematicPackages.entries()).sort((a, b) => b[1].logCount - a[1].logCount);
+  // 按使用频率排序显示详细信息
+  const sortedPackages = Array.from(problematicPackages.entries()).sort((a, b) => b[1].logCount - a[1].logCount);
 
-    console.log('\n匹配的包详细信息 (按匹配频率排序):');
-    console.log('='.repeat(80));
+  console.log('\n匹配的包详细信息 (按匹配频率排序):');
+  console.log('='.repeat(80));
 
-    sortedPackages.forEach(([packageUrl, info], i) => {
-      console.log(`${String(i + 1).padStart(2)}. ${info.name}`);
-      console.log(`    仓库: ${packageUrl}`);
-      console.log(`    匹配的模式: ${Array.from(info.patterns).sort().join(', ')}`);
-      console.log(`    涉及平台: ${Array.from(info.platforms).sort().join(', ')}`);
-      console.log(`    日志文件数: ${info.logCount}`);
+  sortedPackages.forEach(([packageUrl, info], i) => {
+    console.log(`${String(i + 1).padStart(2)}. ${info.name}`);
+    console.log(`    仓库: ${packageUrl}`);
+    console.log(`    匹配的模式: ${Array.from(info.patterns).sort().join(', ')}`);
+    console.log(`    涉及平台: ${Array.from(info.platforms).sort().join(', ')}`);
+    console.log(`    日志文件数: ${info.logCount}`);
 
-      // 显示部分日志文件路径
-      if (info.logFiles.length > 0 && info.logFiles.length <= 5) {
-        console.log('    日志文件:');
-        info.logFiles.forEach((logFile) => {
-          console.log(`      - ${logFile}`);
-        });
-      } else if (info.logFiles.length > 5) {
-        console.log('    日志文件 (显示前5个):');
-        info.logFiles.slice(0, 5).forEach((logFile) => {
-          console.log(`      - ${logFile}`);
-        });
-        console.log(`      ... 以及其他 ${info.logFiles.length - 5} 个文件`);
-      }
-      console.log();
-    });
-  }
+    // 显示部分日志文件路径
+    if (info.logFiles.length > 0 && info.logFiles.length <= 5) {
+      console.log('    日志文件:');
+      info.logFiles.forEach((logFile) => {
+        console.log(`      - ${logFile}`);
+      });
+    } else if (info.logFiles.length > 5) {
+      console.log('    日志文件 (显示前5个):');
+      info.logFiles.slice(0, 5).forEach((logFile) => {
+        console.log(`      - ${logFile}`);
+      });
+      console.log(`      ... 以及其他 ${info.logFiles.length - 5} 个文件`);
+    }
+    console.log();
+  });
 }
 
 /**
@@ -430,11 +413,10 @@ export async function analyze(options: AnalyzeOptions) {
   const { problematicPackages, totalPackages, totalLogsChecked } = await analyzePackages(
     patterns,
     options.regex || false,
-    !options.simple,
     options.dataDir,
   );
 
-  printResults(patterns, problematicPackages, totalPackages, totalLogsChecked, options.simple || false);
+  printResults(patterns, problematicPackages, totalPackages, totalLogsChecked);
 
   if (options.csv) {
     await exportCsv(options.csv, problematicPackages);
