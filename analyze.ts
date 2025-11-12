@@ -6,6 +6,7 @@ import { TextLineStream } from '@std/streams';
 import { BuildResult, FailureResult, Status, SuccessResult } from './lib/types.ts';
 import { join } from '@std/path/join';
 import { exists } from '@std/fs/exists';
+import { getAllMooncakes, MooncakesDB } from './lib/mooncakesio.ts';
 
 interface PackageInfo {
   name: string;
@@ -13,6 +14,7 @@ interface PackageInfo {
   platforms: Set<string>;
   logFiles: string[];
   logCount: number;
+  repository?: string;
 }
 
 export interface AnalyzeOptions {
@@ -102,17 +104,21 @@ async function searchPatternsInLog(
 /**
  * 从JSONL条目中提取包信息
  */
-function getPackageInfo(entry: BuildResult): { packageName: string; packageUrl: string } {
+function getPackageInfo(
+  entry: BuildResult,
+  mooncakesDB?: MooncakesDB,
+): { packageName: string; packageUrl: string; repository?: string } {
   const source = entry.source;
 
   if (source.type === 'git') {
     const packageUrl = source.url;
     const packageName = packageUrl.split('/').pop() || 'unknown';
-    return { packageName, packageUrl };
+    return { packageName, packageUrl, repository: packageUrl };
   } else if (source.type === 'mooncakes') {
     const packageName = source.name;
     const packageUrl = `mooncakes:${packageName}`;
-    return { packageName, packageUrl };
+    const repository = mooncakesDB?.getRepository(packageName);
+    return { packageName, packageUrl, repository };
   } else {
     return { packageName: 'unknown', packageUrl: 'unknown' };
   }
@@ -125,6 +131,7 @@ async function analyzePackages(
   patterns: string[],
   useRegex: boolean,
   dataDir: string,
+  mooncakesDB?: MooncakesDB,
 ): Promise<{
   problematicPackages: Map<string, PackageInfo>;
   totalPackages: number;
@@ -171,7 +178,7 @@ async function analyzePackages(
           continue;
         }
 
-        const { packageName, packageUrl } = getPackageInfo(entry);
+        const { packageName, packageUrl, repository } = getPackageInfo(entry, mooncakesDB);
         totalPackages++;
 
         // 检查所有日志文件
@@ -213,6 +220,7 @@ async function analyzePackages(
                         platforms: new Set(),
                         logFiles: [],
                         logCount: 0,
+                        repository,
                       });
                     }
 
@@ -280,6 +288,9 @@ function printResults(
   sortedPackages.forEach(([packageUrl, info], i) => {
     console.log(`${String(i + 1).padStart(2)}. ${info.name}`);
     console.log(`    仓库: ${packageUrl}`);
+    if (info.repository && info.repository !== packageUrl) {
+      console.log(`    源代码: ${info.repository}`);
+    }
     console.log(`    匹配的模式: ${Array.from(info.patterns).sort().join(', ')}`);
     console.log(`    涉及平台: ${Array.from(info.platforms).sort().join(', ')}`);
     console.log(`    日志文件数: ${info.logCount}`);
@@ -314,12 +325,13 @@ async function exportCsv(
   }
 
   const lines: string[] = [];
-  lines.push('包名,仓库URL,匹配的模式,涉及平台,日志文件数');
+  lines.push('包名,仓库URL,源代码仓库,匹配的模式,涉及平台,日志文件数');
 
   for (const [packageUrl, info] of problematicPackages.entries()) {
     const row = [
       info.name,
       packageUrl,
+      info.repository || '',
       Array.from(info.patterns).sort().join('; '),
       Array.from(info.platforms).sort().join('; '),
       String(info.logCount),
@@ -410,10 +422,22 @@ export async function analyze(options: AnalyzeOptions) {
     Deno.exit(1);
   }
 
+  // 加载 mooncakes 数据库以获取仓库信息
+  console.log('加载 mooncakes 数据库...');
+  let mooncakesDB: MooncakesDB | undefined;
+  try {
+    mooncakesDB = await getAllMooncakes();
+    console.log(`已加载 ${Array.from(mooncakesDB.keys()).length} 个 mooncake 包的信息`);
+  } catch (error) {
+    console.warn('警告: 无法加载 mooncakes 数据库，将无法显示 mooncake 包的源代码仓库');
+    console.warn('错误信息:', error);
+  }
+
   const { problematicPackages, totalPackages, totalLogsChecked } = await analyzePackages(
     patterns,
     options.regex || false,
     options.dataDir,
+    mooncakesDB,
   );
 
   printResults(patterns, problematicPackages, totalPackages, totalLogsChecked);

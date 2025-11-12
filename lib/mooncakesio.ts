@@ -97,26 +97,44 @@ function getIndexPath(): string {
 export interface MooncakeInfo {
   version: string;
   keywords?: string[];
+  repository?: string;
+}
+
+export interface MooncakeVersionInfo {
+  version: SemVer;
+  repository?: string;
 }
 
 export class MooncakesDB {
-  public db: Map<string, SemVer[]> = new Map();
+  public db: Map<string, MooncakeVersionInfo[]> = new Map();
 
-  getLatestVersion(name: string): SemVer {
+  getLatestVersion(name: string): MooncakeVersionInfo {
     const versions = this.db.get(name);
     if (!versions || versions.length === 0) {
       throw new Error(`No versions found for mooncake: ${name}`);
     }
     const range = parseRange('*');
-    return maxSatisfying(versions, range)!;
+    const semvers = versions.map((v) => v.version);
+    const latestSemVer = maxSatisfying(semvers, range)!;
+    return versions.find((v) => v.version === latestSemVer)!;
   }
 
-  getVersions(name: string): SemVer[] {
+  getVersions(name: string): MooncakeVersionInfo[] {
     const versions = this.db.get(name);
     if (!versions) {
       throw new Error(`No versions found for mooncake: ${name}`);
     }
     return versions;
+  }
+
+  getRepository(name: string): string | undefined {
+    const versions = this.db.get(name);
+    if (!versions || versions.length === 0) {
+      return undefined;
+    }
+    // 返回最新版本的仓库信息
+    const latestVersion = this.getLatestVersion(name);
+    return latestVersion.repository;
   }
 
   containsKey(name: string): boolean {
@@ -145,7 +163,7 @@ export async function getAllMooncakes(): Promise<MooncakesDB> {
       try {
         using indexContent = await Deno.open(entry.path);
         let isMooncakesTest = false;
-        const indexes: SemVer[] = [];
+        const indexes: MooncakeVersionInfo[] = [];
         await indexContent.readable
           .pipeThrough(new TextDecoderStream())
           .pipeThrough(new TextLineStream())
@@ -153,7 +171,10 @@ export async function getAllMooncakes(): Promise<MooncakesDB> {
             new WritableStream<any>({
               write(obj: MooncakeInfo) {
                 try {
-                  indexes.push(parse(obj.version));
+                  indexes.push({
+                    version: parse(obj.version),
+                    repository: obj.repository,
+                  });
                 } catch {
                   console.error('Failed to parse version:', obj.version, 'package', name);
                 }

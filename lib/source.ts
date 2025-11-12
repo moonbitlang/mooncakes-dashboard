@@ -61,12 +61,12 @@ export async function getMooncakeSources(
           repoList.push({
             type: 'mooncakesio',
             name: key,
-            version: semver.format(mooncakes.getLatestVersion(key)),
+            version: semver.format(mooncakes.getLatestVersion(key).version),
           });
         } catch {
           console.error(
             `Failed to get latest version for mooncake: ${key}`,
-            mooncakes.getVersions(key).map(semver.format),
+            mooncakes.getVersions(key).map((v) => semver.format(v.version)),
           );
           continue;
         }
@@ -87,10 +87,11 @@ export async function getMooncakeSources(
       }
       try {
         const range = semver.parseRange(included.version || '*');
+        const versions = mooncakes.getVersions(included.name).map((v) => v.version);
         repoList.push({
           type: 'mooncakesio',
           name: included.name,
-          version: semver.format(semver.maxSatisfying(mooncakes.getVersions(included.name), range)!),
+          version: semver.format(semver.maxSatisfying(versions, range)!),
         });
       } catch {
         console.error(
