@@ -77,6 +77,7 @@ jobs:
           name: ${{ matrix.os.name }}-${{ matrix.channel.name }}
           path: './data/${{ matrix.os.name }}/${{ matrix.channel.name }}/'
           if-no-files-found: error
+          retention-days: 1  # Short retention for intermediate artifacts
 
   publish-site:
     needs: collect-data
@@ -125,6 +126,7 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           path: ./publish
+          retention-days: 90  # Long retention for GitHub Pages
 
       - name: Deploy to GitHub Pages
         id: deployment
