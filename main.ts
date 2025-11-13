@@ -3,7 +3,7 @@ import { join } from '@std/path/join';
 import { parseCliArgs } from './lib/cli.ts';
 import { stat } from './lib/core.ts';
 import { JsonStringifyStream } from '@std/json';
-import { analyze } from './analyze.ts';
+import { analyze } from './lib/analyze.ts';
 import z from 'zod';
 import { BuildConfigsSchema, SourcesSchema } from './lib/types.ts';
 

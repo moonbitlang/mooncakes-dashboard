@@ -3,10 +3,10 @@
 
 import { JsonParseStream } from '@std/json';
 import { TextLineStream } from '@std/streams';
-import { BuildResult, FailureResult, Status, SuccessResult } from './lib/types.ts';
+import { BuildResult, FailureResult, Status, SuccessResult } from './types.ts';
 import { join } from '@std/path/join';
 import { exists } from '@std/fs/exists';
-import { getAllMooncakes, MooncakesDB } from './lib/mooncakesio.ts';
+import { getAllMooncakes, MooncakesDB } from './mooncakesio.ts';
 
 interface PackageInfo {
   name: string;
