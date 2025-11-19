@@ -103,6 +103,14 @@ async function searchPatternsInLog(
 }
 
 /**
+ * 规范化仓库URL，移除 .git 后缀
+ */
+function normalizeRepositoryUrl(url: string | undefined): string | undefined {
+  if (!url) return undefined;
+  return url.endsWith('.git') ? url.slice(0, -4) : url;
+}
+
+/**
  * 从JSONL条目中提取包信息
  */
 function getPackageInfo(
@@ -114,11 +122,11 @@ function getPackageInfo(
   if (source.type === 'git') {
     const packageUrl = source.url;
     const packageName = packageUrl.split('/').pop() || 'unknown';
-    return { packageName, packageUrl, repository: packageUrl };
+    return { packageName, packageUrl, repository: normalizeRepositoryUrl(packageUrl) };
   } else if (source.type === 'mooncakes') {
     const packageName = source.name;
     const packageUrl = `mooncakes:${packageName}`;
-    const repository = mooncakesDB?.getRepository(packageName);
+    const repository = normalizeRepositoryUrl(mooncakesDB?.getRepository(packageName));
     return { packageName, packageUrl, repository };
   } else {
     return { packageName: 'unknown', packageUrl: 'unknown' };
