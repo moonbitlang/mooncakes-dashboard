@@ -200,6 +200,9 @@ deno run -A main.ts analyze --predefined old_operators --csv results.csv
 
 # Simple output (package names only)
 deno run -A main.ts analyze --predefined old_operators --simple
+
+# Filter to specific GitHub organizations
+deno run -A main.ts analyze --predefined old_operators --github-orgs moonbitlang moonbit-community
 ```
 
 **Options:**
@@ -211,6 +214,7 @@ deno run -A main.ts analyze --predefined old_operators --simple
 - `-s, --simple` - Simple output mode (package names only)
 - `-c, --csv FILENAME` - Export results to CSV file
 - `-D, --data-dir PATH` - Data directory path (default: `data`)
+- `-g, --github-orgs ORG...` - Filter results to specific GitHub organizations (e.g., moonbitlang, moonbit-community)
 
 **Predefined Pattern Sets:**
 
@@ -218,6 +222,24 @@ deno run -A main.ts analyze --predefined old_operators --simple
 - `immut_list` - Usage of @immut/list package
 - `moonbitlang_core` - Usage of @moonbitlang/core package
 - `json_usage` - JSON-related functionality usage
+
+**GitHub Organization Filtering:**
+
+When you specify `--github-orgs`, the tool will output an additional list of GitHub repositories from the specified organizations that need to be fixed. This is useful for focusing on packages maintained by specific organizations like `moonbitlang` or `moonbit-community`.
+
+Example output:
+```
+================================================================================
+需要修复的GitHub仓库 (组织: moonbitlang, moonbit-community)
+================================================================================
+总数: 5
+
+ 1. https://github.com/moonbitlang/core
+ 2. https://github.com/moonbitlang/x
+ 3. https://github.com/moonbit-community/async
+ 4. https://github.com/moonbit-community/http
+ 5. https://github.com/moonbit-community/json
+```
 
 #### 3. `schema` - Generate JSON Schemas
 

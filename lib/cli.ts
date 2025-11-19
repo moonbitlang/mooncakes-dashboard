@@ -18,6 +18,7 @@ export interface AnalyzeSubcommand {
   csv?: string;
   dataDir: string;
   file?: string;
+  githubOrgs?: string[];
 }
 
 export type MoonBuildDashBoardCli =
@@ -88,6 +89,8 @@ OPTIONS:
     -s, --simple                          Simple output mode (package names only)
     -c, --csv <FILENAME>                  Export results to CSV file
     -D, --data-dir <PATH>                 Data directory path [default: data]
+    -g, --github-orgs <ORG>...            Filter results to specific GitHub organizations
+                                          (can be specified multiple times)
     -h, --help                            Show this help message
 
 PREDEFINED PATTERN SETS:
@@ -108,6 +111,9 @@ EXAMPLES:
 
     # Export results to CSV
     deno run -A main.ts analyze --predefined old_operators --csv results.csv
+
+    # Filter results to moonbitlang and moonbit-community organizations
+    deno run -A main.ts analyze --predefined old_operators --github-orgs moonbitlang moonbit-community
 `);
 }
 
@@ -169,9 +175,10 @@ function parseAnalyzeArgs(args: string[]): AnalyzeSubcommand {
       c: 'csv',
       D: 'data-dir',
       f: 'file',
+      g: 'github-orgs',
     },
     boolean: ['help', 'regex', 'simple'],
-    collect: ['patterns'],
+    collect: ['patterns', 'github-orgs'],
   });
 
   if (parsed.help) {
@@ -192,6 +199,7 @@ function parseAnalyzeArgs(args: string[]): AnalyzeSubcommand {
     csv: parsed.csv,
     dataDir: parsed['data-dir'] || 'data',
     file: parsed.file,
+    githubOrgs: parsed['github-orgs'] as string[] | undefined,
   };
 }
 

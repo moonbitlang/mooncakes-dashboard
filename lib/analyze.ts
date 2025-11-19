@@ -24,6 +24,7 @@ export interface AnalyzeOptions {
   csv?: string;
   dataDir: string;
   file?: string;
+  githubOrgs?: string[];
 }
 
 /**
@@ -344,6 +345,53 @@ async function exportCsv(
 }
 
 /**
+ * 检查仓库URL是否属于指定的GitHub组织
+ */
+function isFromGithubOrgs(repository: string | undefined, orgs: string[]): boolean {
+  if (!repository) return false;
+
+  // 规范化仓库URL，提取组织名
+  const githubMatch = repository.match(/github\.com[\/:]([^\/]+)\//);
+  if (!githubMatch) return false;
+
+  const org = githubMatch[1];
+  return orgs.includes(org);
+}
+
+/**
+ * 输出需要修复的GitHub仓库列表
+ */
+function printGithubReposList(
+  problematicPackages: Map<string, PackageInfo>,
+  githubOrgs: string[],
+) {
+  const repos = new Set<string>();
+
+  for (const info of problematicPackages.values()) {
+    if (info.repository && isFromGithubOrgs(info.repository, githubOrgs)) {
+      repos.add(info.repository);
+    }
+  }
+
+  if (repos.size === 0) {
+    console.log(`\n🎉 没有在指定的GitHub组织 (${githubOrgs.join(', ')}) 中发现需要修复的仓库！`);
+    return;
+  }
+
+  console.log('\n' + '='.repeat(80));
+  console.log(`需要修复的GitHub仓库 (组织: ${githubOrgs.join(', ')})`);
+  console.log('='.repeat(80));
+  console.log(`总数: ${repos.size}`);
+  console.log();
+
+  const sortedRepos = Array.from(repos).sort();
+  sortedRepos.forEach((repo, i) => {
+    console.log(`${String(i + 1).padStart(2)}. ${repo}`);
+  });
+  console.log();
+}
+
+/**
  * 简单分析模式 (原有的快速失败/慢速分析)
  */
 async function simpleAnalyze(file: string) {
@@ -441,6 +489,11 @@ export async function analyze(options: AnalyzeOptions) {
   );
 
   printResults(patterns, problematicPackages, totalPackages, totalLogsChecked);
+
+  // 如果指定了 GitHub 组织过滤，输出相关仓库列表
+  if (options.githubOrgs && options.githubOrgs.length > 0) {
+    printGithubReposList(problematicPackages, options.githubOrgs);
+  }
 
   if (options.csv) {
     await exportCsv(options.csv, problematicPackages);
