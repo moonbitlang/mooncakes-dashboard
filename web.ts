@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'https://esm.sh/preact/hooks';
-import { html, render } from 'https://esm.sh/htm/preact';
+import { useEffect, useState } from 'npm:preact/hooks';
+import { html, render } from 'npm:htm/preact';
 import type { BuildResult, MetaData, Result } from './lib/types.ts';
 import { TextLineStream } from '@std/streams/text-line-stream';
 import { JsonParseStream } from '@std/json/parse-stream';
