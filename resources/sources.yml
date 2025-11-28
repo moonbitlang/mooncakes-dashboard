@@ -85,6 +85,10 @@ mooncakes:
 
 # Packages to exclude (by name)
 exclude:
+  # mispublished
+  - moonbitlang/json_deriving_codegen
+  - moonbitlang/json_deriving
+  
   # out of maintenance
   - colmugx/reader
   - BigOrangeQWQ/ImmuntableMultiSet
