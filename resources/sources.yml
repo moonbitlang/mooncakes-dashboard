@@ -88,7 +88,7 @@ exclude:
   # mispublished
   - moonbitlang/json_deriving_codegen
   - moonbitlang/json_deriving
-  
+
   # out of maintenance
   - colmugx/reader
   - BigOrangeQWQ/ImmuntableMultiSet
@@ -199,9 +199,13 @@ exclude:
   - oboard/mimetype
   - oboard/mocket
   - illusory0x0/base
-  - moonbitlang/lex
+
+  - moonbitlang/lex # moonlex-old
   - moonbitlang/mbt-lexer
   - moonbitlang/mbt_lexer
+
+  - moonbitlang/lex/runtime # became moonbitlang/lex-runtime
+  - moonbitlang/lex-runtime # became moonbitlang moonbitlang/ulex-runtime
 
   # minor
   - illusory0x0/🐫
