@@ -76,6 +76,9 @@ git-repos:
   - name: moonbit-community/sw-ini
     link: https://github.com/moonbit-community/sw-ini
     branch: main
+  - name: moonbitlang/esp32
+    link: https://github.com/moonbit-community/moonbit-esp32
+    branch: main
 
 # Specific mooncake packages to include (optional, only needed if include_all_mooncakes is false)
 # If include_all_mooncakes is true, this list is merged with all packages from registry
@@ -175,7 +178,6 @@ exclude:
   - peter-jerry-ye/advent_of_code
   - peter-jerry-ye/parser-combinator
   - tonyfettes/narray
-  - moonbitlang/yacc
   - hackwaly/common
   - hackwaly/moonyacc
   - kesmeey/tools
@@ -258,9 +260,10 @@ exclude:
   - zxch3n/expect
   - xunyoyo/linalg
   - moonbitlang/core
-  - moonbitlang/x
-  - moonbitlang/quickcheck
   - moonbitlang/arduino
+  - moonbitlang/quickcheck
+  - moonbitlang/x
+  - moonbitlang/yacc
   - Kaida-Amethyst/math
   - Kaida-Amethyst/moonbit-math
   - ruifeng/XMLParser
