@@ -371,23 +371,34 @@ function isFromGithubOrgs(repository: string | undefined, orgs: string[]): boole
  */
 function printGithubReposList(
   problematicPackages: Map<string, PackageInfo>,
-  githubOrgs: string[],
+  githubOrgs?: string[],
 ) {
   const repos = new Set<string>();
 
   for (const info of problematicPackages.values()) {
-    if (info.repository && isFromGithubOrgs(info.repository, githubOrgs)) {
-      repos.add(info.repository);
+    if (info.repository) {
+      // 如果指定了组织过滤，只添加匹配的仓库；否则添加所有仓库
+      if (!githubOrgs || githubOrgs.length === 0 || isFromGithubOrgs(info.repository, githubOrgs)) {
+        repos.add(info.repository);
+      }
     }
   }
 
   if (repos.size === 0) {
-    console.log(`\n🎉 没有在指定的GitHub组织 (${githubOrgs.join(', ')}) 中发现需要修复的仓库！`);
+    if (githubOrgs && githubOrgs.length > 0) {
+      console.log(`\n🎉 没有在指定的GitHub组织 (${githubOrgs.join(', ')}) 中发现需要修复的仓库！`);
+    } else {
+      console.log('\n🎉 没有发现需要修复的仓库！');
+    }
     return;
   }
 
   console.log('\n' + '='.repeat(80));
-  console.log(`需要修复的GitHub仓库 (组织: ${githubOrgs.join(', ')})`);
+  if (githubOrgs && githubOrgs.length > 0) {
+    console.log(`需要修复的GitHub仓库 (组织: ${githubOrgs.join(', ')})`);
+  } else {
+    console.log('需要修复的GitHub仓库');
+  }
   console.log('='.repeat(80));
   console.log(`总数: ${repos.size}`);
   console.log();
@@ -498,10 +509,8 @@ export async function analyze(options: AnalyzeOptions) {
 
   printResults(patterns, problematicPackages, totalPackages, totalLogsChecked);
 
-  // 如果指定了 GitHub 组织过滤，输出相关仓库列表
-  if (options.githubOrgs && options.githubOrgs.length > 0) {
-    printGithubReposList(problematicPackages, options.githubOrgs);
-  }
+  // 输出需要修复的仓库列表（如果指定了 GitHub 组织，则只显示这些组织的仓库）
+  printGithubReposList(problematicPackages, options.githubOrgs);
 
   if (options.csv) {
     await exportCsv(options.csv, problematicPackages);
