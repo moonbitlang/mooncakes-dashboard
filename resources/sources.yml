@@ -79,6 +79,9 @@ git-repos:
   - name: moonbitlang/esp32
     link: https://github.com/moonbit-community/moonbit-esp32
     branch: main
+  - name: eliezhao/moonbit-ic-cdk
+    link: https://github.com/eliezhao/moonbit-ic-cdk.git
+    branch: main
 
 # Specific mooncake packages to include (optional, only needed if include_all_mooncakes is false)
 # If include_all_mooncakes is true, this list is merged with all packages from registry
