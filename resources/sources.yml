@@ -172,6 +172,8 @@ exclude:
   - YumeCross/schema
   - CMoonBack/computational-geometry
   - myfreess/myers-diff
+  - myfreess/rope
+  - myfreess/text
   - yuyi919/shared-lib
   - CAIMEOX/graph-algebra
   - Lampese/moondata
