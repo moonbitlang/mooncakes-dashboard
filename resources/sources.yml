@@ -201,8 +201,6 @@ exclude:
   - hanstechnow/ctf_tools
   - pai2shub/alg
   - FlyCloudC/scheme
-  - oboard/mimetype
-  - oboard/mocket
   - illusory0x0/base
 
   - moonbitlang/lex # moonlex-old
