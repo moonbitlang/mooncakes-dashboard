@@ -14,6 +14,7 @@ export async function statMooncake(
   command: MoonCommand,
   backend: Backend,
   dir: string,
+  channel: 'stable' | 'nightly',
 ): Promise<Result> {
   const startTime = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
   const slug = await makeLogSlug(source);
@@ -26,6 +27,7 @@ export async function statMooncake(
       '--target-dir',
       `target/${backend}`,
       ...(command === 'test' ? ['--build-only'] : []),
+      ...(channel === 'nightly' ? ['--warn-list', '@deprecated'] : []),
     ]);
     const status = result.success ? Status.Success : Status.Failure;
     const paths = await writeLogFiles(slug, dir, command, backend, result.stdout, result.stderr);
@@ -62,6 +64,7 @@ export async function runMatrix(
   runningOs: string[],
   runningBackend: Backend[],
   dir: string,
+  channel: 'stable' | 'nightly',
 ): Promise<CBT> {
   const currentOs = Deno.build.os;
   let shouldRun = false;
@@ -89,6 +92,7 @@ export async function runMatrix(
           command,
           backend,
           dir,
+          channel,
         );
         if (result[command][backend].status === Status.Failure) {
           break;
@@ -100,7 +104,12 @@ export async function runMatrix(
   return result;
 }
 
-export async function build(source: Mooncake, dir: string, build_config: BuildConfigs): Promise<BuildResult> {
+export async function build(
+  source: Mooncake,
+  dir: string,
+  build_config: BuildConfigs,
+  channel: 'stable' | 'nightly',
+): Promise<BuildResult> {
   const tmp = await Deno.makeTempDir();
 
   try {
@@ -118,6 +127,7 @@ export async function build(source: Mooncake, dir: string, build_config: BuildCo
           buildConfig.running_os,
           buildConfig.running_backend,
           dir,
+          channel,
         );
         return { source: { type: 'git', url: source.url, rev: source.rev }, cbt };
       } catch (error) {
@@ -135,6 +145,7 @@ export async function build(source: Mooncake, dir: string, build_config: BuildCo
           buildConfig.running_os,
           buildConfig.running_backend,
           dir,
+          channel,
         );
         return { source: { type: 'mooncakes', name: source.name, version: source.version }, cbt };
       } catch (error) {

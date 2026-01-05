@@ -29,7 +29,7 @@ export async function stat(cmd: StatSubcommand, dir: string): Promise<{ metadata
     const mooncakeSources = await getMooncakeSources(cmd);
 
     const buildResult = await executeWithConcurrency(
-      mooncakeSources.map((source) => () => build(source, dir, configs)),
+      mooncakeSources.map((source) => () => build(source, dir, configs, cmd.channel)),
       maxConcurrentBuilds,
     );
 
