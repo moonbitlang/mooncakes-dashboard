@@ -85,9 +85,9 @@ git-repos:
 
 # Specific mooncake packages to include (optional, only needed if include_all_mooncakes is false)
 # If include_all_mooncakes is true, this list is merged with all packages from registry
-mooncakes:
-  - name: Milky2018/selene
-    version: '0.10.7'
+mooncakes: []
+# - name: Milky2018/selene
+#   version: '0.10.7'
 
 # Packages to exclude (by name)
 exclude:
