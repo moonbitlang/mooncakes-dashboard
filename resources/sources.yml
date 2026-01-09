@@ -211,6 +211,8 @@ exclude:
 
   - moonbitlang/lex/runtime # became moonbitlang/lex-runtime
   - moonbitlang/lex-runtime # became moonbitlang moonbitlang/ulex-runtime
+  - myfreess/piediff # became moonbit-community/piediff
+  - Yu-zh/sslist # became moonbitlang/core/list
 
   # minor
   - illusory0x0/🐫
