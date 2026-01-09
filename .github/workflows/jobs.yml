@@ -33,6 +33,8 @@ jobs:
             name: stable
           - channel: nightly
             name: nightly
+          - channel: pre-release
+            name: pre-release
     runs-on: ${{ matrix.os.platform }}
     steps:
       - uses: actions/checkout@v5
@@ -100,13 +102,16 @@ jobs:
       # Organize data files
       - name: Organize data files
         run: |
-          mkdir -p data/mac/stable data/mac/nightly data/linux/stable data/linux/nightly data/windows/stable data/windows/nightly
+          mkdir -p data/mac/stable data/mac/nightly data/mac/pre-release data/linux/stable data/linux/nightly data/linux/pre-release data/windows/stable data/windows/nightly data/windows/pre-release
           cp -r artifacts/mac-stable/* data/mac/stable/
           cp -r artifacts/mac-nightly/* data/mac/nightly/
+          cp -r artifacts/mac-pre-release/* data/mac/pre-release/
           cp -r artifacts/linux-stable/* data/linux/stable/
           cp -r artifacts/linux-nightly/* data/linux/nightly/
+          cp -r artifacts/linux-pre-release/* data/linux/pre-release/
           cp -r artifacts/windows-stable/* data/windows/stable/
           cp -r artifacts/windows-nightly/* data/windows/nightly/
+          cp -r artifacts/windows-pre-release/* data/windows/pre-release/
 
       # Bundle web.ts to web.js
       - name: Bundle web.js

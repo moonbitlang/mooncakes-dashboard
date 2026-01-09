@@ -4,7 +4,7 @@
 import { parseArgs } from '@std/cli/parse-args';
 
 export interface StatSubcommand {
-  channel: 'stable' | 'nightly';
+  channel: 'stable' | 'nightly' | 'pre-release';
   maxConcurrentBuilds?: number;
   sources?: string;
   buildConfig?: string;
@@ -63,13 +63,14 @@ USAGE:
 OPTIONS:
     --sources <PATH>                      Path to sources config file [default: resources/sources.yml]
     --build-config <PATH>                 Path to build config file [default: resources/build-config.yml]
-    --channel <CHANNEL>                   Channel to use (stable or nightly) [default: stable]
+    --channel <CHANNEL>                   Channel to use (stable, nightly, or pre-release) [default: stable]
     --max-concurrent-builds <NUMBER>      Maximum number of concurrent builds [default: 3]
     -h, --help                            Show this help message
 
 EXAMPLES:
     deno run -A main.ts stat --channel nightly
     deno run -A main.ts stat --channel stable --max-concurrent-builds 5
+    deno run -A main.ts stat --channel pre-release
 `);
 }
 
@@ -156,7 +157,7 @@ function parseStatArgs(args: string[]): StatSubcommand {
     : undefined;
 
   return {
-    channel: (parsed.channel === 'nightly' ? 'nightly' : 'stable') as 'stable' | 'nightly',
+    channel: (parsed.channel === 'nightly' ? 'nightly' : parsed.channel === 'pre-release' ? 'pre-release' : 'stable') as 'stable' | 'nightly' | 'pre-release',
     sources: parsed.sources,
     buildConfig: parsed['build-config'],
     maxConcurrentBuilds,

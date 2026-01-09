@@ -16,10 +16,13 @@ type RowData = {
   source: BuildResult['source'];
   'mac/nightly': BuildResult | null;
   'mac/stable': BuildResult | null;
+  'mac/pre-release': BuildResult | null;
   'linux/nightly': BuildResult | null;
   'linux/stable': BuildResult | null;
+  'linux/pre-release': BuildResult | null;
   'windows/nightly': BuildResult | null;
   'windows/stable': BuildResult | null;
+  'windows/pre-release': BuildResult | null;
   label: 'regression' | 'inconsistent' | 'ok' | '';
 };
 
@@ -53,8 +56,10 @@ function getOverallStatus(result: BuildResult | null): 'success' | 'failure' | '
 
 function getLabel(row: RowData): 'regression' | 'inconsistent' | 'ok' | '' {
   const platforms = ['mac', 'linux', 'windows'] as const;
+
   const nightlyStatuses = platforms.map((p) => getOverallStatus(row[`${p}/nightly`]));
   const stableStatuses = platforms.map((p) => getOverallStatus(row[`${p}/stable`]));
+  const prereleaseStatuses = platforms.map((p) => getOverallStatus(row[`${p}/pre-release`]));
 
   for (let i = 0; i < platforms.length; i++) {
     if (nightlyStatuses[i] === 'failure' && stableStatuses[i] === 'success') {
@@ -66,8 +71,11 @@ function getLabel(row: RowData): 'regression' | 'inconsistent' | 'ok' | '' {
   const nightlyFailure = nightlyStatuses.filter((s) => s === 'failure').length;
   const stableSuccess = stableStatuses.filter((s) => s === 'success').length;
   const stableFailure = stableStatuses.filter((s) => s === 'failure').length;
+  const prereleaseSuccess = prereleaseStatuses.filter((s) => s === 'success').length;
+  const prereleaseFailure = prereleaseStatuses.filter((s) => s === 'failure').length;
 
-  if ((nightlySuccess > 0 && nightlyFailure > 0) || (stableSuccess > 0 && stableFailure > 0)) {
+  if ((nightlySuccess > 0 && nightlyFailure > 0) || (stableSuccess > 0 && stableFailure > 0) ||
+      (prereleaseSuccess > 0 && prereleaseFailure > 0)) {
     return 'inconsistent';
   }
 
@@ -189,7 +197,7 @@ function App() {
       const keys = [];
 
       for (const os of ['linux', 'windows', 'mac']) {
-        for (const channel of ['nightly', 'stable']) {
+        for (const channel of ['stable', 'nightly', 'pre-release']) {
           const key = `${os}/${channel}`;
           keys.push(key);
         }
@@ -237,10 +245,13 @@ function App() {
           source: result.source,
           'mac/nightly': null,
           'mac/stable': null,
+          'mac/pre-release': null,
           'linux/nightly': null,
           'linux/stable': null,
+          'linux/pre-release': null,
           'windows/nightly': null,
           'windows/stable': null,
+          'windows/pre-release': null,
           label: '',
         });
       }
@@ -275,9 +286,9 @@ function App() {
           <!-- Platform headers -->
           <tr style="background-color: #1e293b; color: white;">
             <th style="padding: 8px; text-align: center; border: 1px solid #cbd5e1;" rowspan="4">Source</th>
-            <th style="padding: 8px; text-align: center; border: 1px solid #cbd5e1;" colspan="24">Mac</th>
-            <th style="padding: 8px; text-align: center; border: 1px solid #cbd5e1;" colspan="24">Linux</th>
-            <th style="padding: 8px; text-align: center; border: 1px solid #cbd5e1;" colspan="24">Windows</th>
+            <th style="padding: 8px; text-align: center; border: 1px solid #cbd5e1;" colspan="36">Mac</th>
+            <th style="padding: 8px; text-align: center; border: 1px solid #cbd5e1;" colspan="36">Linux</th>
+            <th style="padding: 8px; text-align: center; border: 1px solid #cbd5e1;" colspan="36">Windows</th>
             <th style="padding: 8px; text-align: center; border: 1px solid #cbd5e1;" rowspan="4">Label</th>
           </tr>
           <!-- Channel headers -->
@@ -286,12 +297,13 @@ function App() {
               html`
                 <th style="padding: 6px; text-align: center; border: 1px solid #cbd5e1;" colspan="12">Stable</th>
                 <th style="padding: 6px; text-align: center; border: 1px solid #cbd5e1;" colspan="12">Nightly</th>
+                <th style="padding: 6px; text-align: center; border: 1px solid #cbd5e1;" colspan="12">Pre-release</th>
               `
             )}
           </tr>
           <!-- Backend headers -->
           <tr style="background-color: #475569; color: white;">
-            ${Array(6).fill(null).map(() =>
+            ${Array(9).fill(null).map(() =>
               html`
                 <th style="padding: 4px; text-align: center; border: 1px solid #cbd5e1; font-size: 9px;" colspan="3">wasm</th>
                 <th style="padding: 4px; text-align: center; border: 1px solid #cbd5e1; font-size: 9px;" colspan="3">wasm-gc</th>
@@ -302,7 +314,7 @@ function App() {
           </tr>
           <!-- Command headers -->
           <tr style="background-color: #64748b; color: white;">
-            ${Array(24).fill(null).map(() =>
+            ${Array(36).fill(null).map(() =>
               html`
                 <th style="padding: 2px; text-align: center; border: 1px solid #cbd5e1; font-size: 8px;">c</th>
                 <th style="padding: 2px; text-align: center; border: 1px solid #cbd5e1; font-size: 8px;">b</th>
@@ -314,7 +326,7 @@ function App() {
         <tbody>
           ${rows.map((row, idx) => {
             const platforms = ['mac', 'linux', 'windows'] as const;
-            const channels = ['stable', 'nightly'] as const;
+            const channels = ['stable', 'nightly', 'pre-release'] as const;
             const commands = ['check', 'build', 'test'] as const;
             const backends = ['wasm', 'wasm-gc', 'js', 'native'] as const;
 

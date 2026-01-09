@@ -14,7 +14,7 @@ export async function statMooncake(
   command: MoonCommand,
   backend: Backend,
   dir: string,
-  channel: 'stable' | 'nightly',
+  channel: 'stable' | 'nightly' | 'pre-release',
 ): Promise<Result> {
   const startTime = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
   const slug = await makeLogSlug(source);
@@ -64,7 +64,7 @@ export async function runMatrix(
   runningOs: string[],
   runningBackend: Backend[],
   dir: string,
-  channel: 'stable' | 'nightly',
+  channel: 'stable' | 'nightly' | 'pre-release',
 ): Promise<CBT> {
   const currentOs = Deno.build.os;
   let shouldRun = false;
@@ -108,7 +108,7 @@ export async function build(
   source: Mooncake,
   dir: string,
   build_config: BuildConfigs,
-  channel: 'stable' | 'nightly',
+  channel: 'stable' | 'nightly' | 'pre-release',
 ): Promise<BuildResult> {
   const tmp = await Deno.makeTempDir();
 

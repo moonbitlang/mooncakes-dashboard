@@ -6,7 +6,7 @@ This file documents the current status and architecture of the MoonBit Build Das
 
 The MoonBit Build Dashboard is a TypeScript/Deno-based tool that monitors, builds, and compares the health of all
 MoonBit packages published on mooncakes (MoonBit's package registry) plus a curated set of Git repositories. It tracks
-buildability across OS (Linux/macOS/Windows), backend targets (wasm/wasm-gc/js/native), and channels (stable/nightly).
+buildability across OS (Linux/macOS/Windows), backend targets (wasm/wasm-gc/js/native), and channels (stable/nightly/pre-release).
 
 ## Current Architecture
 
@@ -27,12 +27,13 @@ buildability across OS (Linux/macOS/Windows), backend targets (wasm/wasm-gc/js/n
 
 ### Channel System (Current)
 
-The project currently supports **two channels**:
+The project currently supports **three channels**:
 
 - `stable` - Stable MoonBit toolchain releases
 - `nightly` - Nightly MoonBit toolchain builds
+- `pre-release` - Pre-release MoonBit toolchain builds
 
-The nightly channel adds the `--warn-list @deprecated` flag during builds.
+The nightly and pre-release channels add the `--warn-list @deprecated` flag during builds.
 
 ### Data Flow
 
@@ -55,11 +56,13 @@ The nightly channel adds the `--warn-list @deprecated` flag during builds.
 
 ### Regression Detection Logic
 
-For each platform, the web UI compares nightly vs stable results:
+For each platform, web UI compares nightly vs stable results:
 
 - **regression** - nightly failed but stable succeeded (potential toolchain regression)
-- **inconsistent** - mixed success/failure within a channel across platforms
+- **inconsistent** - mixed success/failure within any channel (stable/nightly/pre-release) across platforms
 - **ok** - consistent success or uniformly skipped
+
+The dashboard displays results from all three channels (stable, nightly, pre-release) simultaneously.
 
 ### Type Definitions
 
@@ -81,10 +84,13 @@ type RowData = {
   source: BuildResult['source'];
   'mac/nightly': BuildResult | null;
   'mac/stable': BuildResult | null;
+  'mac/pre-release': BuildResult | null;
   'linux/nightly': BuildResult | null;
   'linux/stable': BuildResult | null;
+  'linux/pre-release': BuildResult | null;
   'windows/nightly': BuildResult | null;
   'windows/stable': BuildResult | null;
+  'windows/pre-release': BuildResult | null;
   label: 'regression' | 'inconsistent' | 'ok' | '';
 };
 ```
@@ -96,7 +102,7 @@ type RowData = {
 Collects build statistics across all configured packages.
 
 ```bash
-deno run -A main.ts stat --channel <stable|nightly> --sources <path> --build-config <path> --max-concurrent-builds <number>
+deno run -A main.ts stat --channel <stable|nightly|pre-release> --sources <path> --build-config <path> --max-concurrent-builds <number>
 ```
 
 ### analyze
@@ -211,7 +217,5 @@ moon-build-dashboard/
 
 ## Limitations & Known Issues
 
-- Only two channels supported (stable, nightly)
-- Regression detection only compares nightly vs stable
-- Web UI hardcodes channel arrays in multiple places
+- Regression detection only compares nightly vs stable (pre-release not included in regression detection)
 - No automated testing pipeline configured
