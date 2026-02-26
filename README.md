@@ -5,6 +5,10 @@ plus a curated set of Git repositories. The dashboard tracks buildability across
 targets (wasm / wasm-gc / js / native), and channels (stable vs nightly) to surface regressions and inconsistencies
 quickly.
 
+## 📚 Repository Documentation
+
+See `docs/repo-architecture.md` for architecture, data flow, command behavior, and common change points.
+
 ## ✨ What This Project Does
 
 - Enumerates every MoonBit package from the local mooncakes index (`~/.moon/registry/index/user`).
