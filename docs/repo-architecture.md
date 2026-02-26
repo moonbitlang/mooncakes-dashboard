@@ -54,6 +54,7 @@ Each `data.jsonl` file:
 
 - `Success`
 - `Failure`
+- `WarningFailure` (check failed due configured warning checks, e.g. `--warn-list @deprecated`)
 - `Skipped`
 
 `Success` and `Failure` store:

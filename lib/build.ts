@@ -1,4 +1,15 @@
-import { Backend, BuildConfigs, BuildResult, CBT, Mooncake, MoonCommand, Result, SKIPPED, Status } from './types.ts';
+import {
+  Backend,
+  BuildConfigs,
+  BuildResult,
+  CBT,
+  CommandOutput,
+  Mooncake,
+  MoonCommand,
+  Result,
+  SKIPPED,
+  Status,
+} from './types.ts';
 import { runMoon } from './moon.ts';
 import { gitCloneTo } from './git.ts';
 import { downloadTo } from './mooncakesio.ts';
@@ -7,6 +18,44 @@ import { findBuildConfig } from './source.ts';
 import { join } from '@std/path';
 
 // 从 core.ts 抽离：statMooncake / runMatrix / build （实现保持原样）
+
+const WARNING_FAILURE_PATTERNS = [
+  { id: '@deprecated', pattern: /@deprecated\b/i },
+  { id: 'deprecated', pattern: /\bdeprecated\b/i },
+] as const;
+
+function matchWarningFailures(output: string): string[] {
+  const matches = new Set<string>();
+  for (const { id, pattern } of WARNING_FAILURE_PATTERNS) {
+    if (pattern.test(output)) {
+      matches.add(id);
+    }
+  }
+  return Array.from(matches);
+}
+
+function classifyStatus(
+  command: MoonCommand,
+  channel: 'stable' | 'nightly' | 'pre-release',
+  result: CommandOutput,
+): { status: Status.Success } | { status: Status.Failure } | {
+  status: Status.WarningFailure;
+  matchedWarnings: string[];
+} {
+  if (result.success) {
+    return { status: Status.Success };
+  }
+
+  const usesWarnList = channel === 'nightly' || channel === 'pre-release';
+  if (usesWarnList && command === 'check') {
+    const matchedWarnings = matchWarningFailures(`${result.stderr}\n${result.stdout}`);
+    if (matchedWarnings.length > 0) {
+      return { status: Status.WarningFailure, matchedWarnings };
+    }
+  }
+
+  return { status: Status.Failure };
+}
 
 export async function statMooncake(
   workdir: string,
@@ -27,12 +76,22 @@ export async function statMooncake(
       '--target-dir',
       `target/${backend}`,
       ...(command === 'test' ? ['--build-only'] : []),
-      ...(channel === 'nightly' ? ['--warn-list', '@deprecated'] : []),
+      ...(channel === 'nightly' || channel === 'pre-release' ? ['--warn-list', '@deprecated'] : []),
     ]);
-    const status = result.success ? Status.Success : Status.Failure;
+    const classified = classifyStatus(command, channel, result);
     const paths = await writeLogFiles(slug, dir, command, backend, result.stdout, result.stderr);
+    if (classified.status === Status.WarningFailure) {
+      return {
+        status: Status.WarningFailure,
+        start_time: startTime,
+        elapsed: result.duration,
+        stdout_path: paths.stdout_path,
+        stderr_path: paths.stderr_path,
+        matchedWarnings: classified.matchedWarnings,
+      };
+    }
     return {
-      status,
+      status: classified.status,
       start_time: startTime,
       elapsed: result.duration,
       stdout_path: paths.stdout_path,
@@ -94,7 +153,10 @@ export async function runMatrix(
           dir,
           channel,
         );
-        if (result[command][backend].status === Status.Failure) {
+        if (
+          result[command][backend].status === Status.Failure ||
+          result[command][backend].status === Status.WarningFailure
+        ) {
           break;
         }
       }

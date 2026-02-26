@@ -3,7 +3,7 @@
 
 import { JsonParseStream } from '@std/json';
 import { TextLineStream } from '@std/streams';
-import { BuildResult, FailureResult, Status, SuccessResult } from './types.ts';
+import { BuildResult, FailureResult, Status, SuccessResult, WarningFailureResult } from './types.ts';
 import { join } from '@std/path/join';
 import { exists } from '@std/fs/exists';
 import { getAllMooncakes, MooncakesDB } from './mooncakesio.ts';
@@ -205,7 +205,7 @@ async function analyzePackages(
             for (const logType of ['stdout_path', 'stderr_path'] as const) {
               if (targetData.status === Status.Skipped) continue;
 
-              const result = targetData as SuccessResult | FailureResult;
+              const result = targetData as SuccessResult | FailureResult | WarningFailureResult;
               const logRelPath = result[logType];
               if (logRelPath) {
                 const logFullPath = join(
@@ -444,8 +444,20 @@ async function simpleAnalyze(file: string) {
               } - ${cmd} - ${backend}`,
             );
           }
-          if (r.status === Status.Failure || r.status === Status.Success) {
-            const execResult = r as SuccessResult | FailureResult;
+          if (r.status === Status.WarningFailure) {
+            const matchedWarnings = 'matchedWarnings' in r ? r.matchedWarnings.join(',') : '';
+            console.log(
+              'warning-failed',
+              `${
+                result.source.type === 'git' ? result.source.url + '@' + result.source.rev : result.source.name
+              } - ${cmd} - ${backend}${matchedWarnings ? ` - ${matchedWarnings}` : ''}`,
+            );
+          }
+          if (
+            r.status === Status.Failure || r.status === Status.Success ||
+            r.status === Status.WarningFailure
+          ) {
+            const execResult = r as SuccessResult | FailureResult | WarningFailureResult;
             if (execResult.elapsed > 1000) {
               console.log(
                 'slow',

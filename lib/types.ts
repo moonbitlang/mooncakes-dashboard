@@ -70,6 +70,7 @@ export type Sources = z.infer<typeof SourcesSchema>;
 export enum Status {
   Success = 'Success',
   Failure = 'Failure',
+  WarningFailure = 'WarningFailure',
   Skipped = 'Skipped',
 }
 
@@ -115,11 +116,20 @@ export interface FailureResult extends ExecuteResult {
   stderr_path: string;
 }
 
+export interface WarningFailureResult extends ExecuteResult {
+  status: Status.WarningFailure;
+  start_time: string;
+  elapsed: number;
+  stdout_path: string;
+  stderr_path: string;
+  matchedWarnings: string[];
+}
+
 export interface SkippedResult extends ExecuteResult {
   status: Status.Skipped;
 }
 
-export type Result = SuccessResult | FailureResult | SkippedResult;
+export type Result = SuccessResult | FailureResult | WarningFailureResult | SkippedResult;
 
 export interface BackendState extends Record<Backend, Result> {
   wasm: Result;

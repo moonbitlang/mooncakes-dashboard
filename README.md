@@ -2,8 +2,8 @@
 
 Monitor, build, and compare the health of all MoonBit packages published on **mooncakes (MoonBit's package registry)**
 plus a curated set of Git repositories. The dashboard tracks buildability across OS (Linux / macOS / Windows), backend
-targets (wasm / wasm-gc / js / native), and channels (stable vs nightly) to surface regressions and inconsistencies
-quickly.
+targets (wasm / wasm-gc / js / native), and channels (stable / nightly / pre-release) to surface regressions and
+inconsistencies quickly.
 
 ## 📚 Repository Documentation
 
@@ -65,7 +65,8 @@ Subsequent lines: `BuildResult` objects:
 }
 ```
 
-Skipped backends/commands use `{"status": "Skipped"}`.
+Skipped backends/commands use `{"status": "Skipped"}`. Nightly/pre-release check failures caused by configured warning
+checks are marked as `{"status": "WarningFailure"}`.
 
 ## 🗃 External Log Storage (NEW)
 

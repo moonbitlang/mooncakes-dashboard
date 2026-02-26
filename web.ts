@@ -23,8 +23,10 @@ type RowData = {
   'windows/nightly': BuildResult | null;
   'windows/stable': BuildResult | null;
   'windows/pre-release': BuildResult | null;
-  label: 'regression' | 'inconsistent' | 'ok' | '';
+  label: 'regression' | 'warning' | 'inconsistent' | 'ok' | '';
 };
+
+type CellStatus = 'success' | 'warning' | 'failure' | 'skipped' | 'error';
 
 function getIdentifier(source: BuildResult['source']): string {
   if (source.type === 'mooncakes') {
@@ -34,27 +36,30 @@ function getIdentifier(source: BuildResult['source']): string {
   }
 }
 
-function getResultStatus(res: Result): 'success' | 'failure' | 'skipped' {
+function getResultStatus(res: Result): CellStatus {
   if (res.status === 'Success') return 'success';
+  if (res.status === 'WarningFailure') return 'warning';
   if (res.status === 'Failure') return 'failure';
   return 'skipped';
 }
 
-function getOverallStatus(result: BuildResult | null): 'success' | 'failure' | 'skipped' | 'error' {
+function getOverallStatus(result: BuildResult | null): CellStatus {
   if (!result) return 'skipped';
   if (result.error) return 'error';
   if (!result.cbt) return 'skipped';
 
+  let hasWarningFailure = false;
   for (const cmd of ['check', 'build', 'test'] as const) {
     for (const backend of ['wasm', 'wasm-gc', 'js', 'native'] as const) {
       const res = result.cbt[cmd][backend];
       if (res.status === 'Failure') return 'failure';
+      if (res.status === 'WarningFailure') hasWarningFailure = true;
     }
   }
-  return 'success';
+  return hasWarningFailure ? 'warning' : 'success';
 }
 
-function getLabel(row: RowData): 'regression' | 'inconsistent' | 'ok' | '' {
+function getLabel(row: RowData): 'regression' | 'warning' | 'inconsistent' | 'ok' | '' {
   const platforms = ['mac', 'linux', 'windows'] as const;
 
   const nightlyStatuses = platforms.map((p) => getOverallStatus(row[`${p}/nightly`]));
@@ -67,16 +72,27 @@ function getLabel(row: RowData): 'regression' | 'inconsistent' | 'ok' | '' {
     }
   }
 
-  const nightlySuccess = nightlyStatuses.filter((s) => s === 'success').length;
-  const nightlyFailure = nightlyStatuses.filter((s) => s === 'failure').length;
-  const stableSuccess = stableStatuses.filter((s) => s === 'success').length;
-  const stableFailure = stableStatuses.filter((s) => s === 'failure').length;
-  const prereleaseSuccess = prereleaseStatuses.filter((s) => s === 'success').length;
-  const prereleaseFailure = prereleaseStatuses.filter((s) => s === 'failure').length;
+  for (let i = 0; i < platforms.length; i++) {
+    if (nightlyStatuses[i] === 'warning' && stableStatuses[i] === 'success') {
+      return 'warning';
+    }
+  }
 
-  if ((nightlySuccess > 0 && nightlyFailure > 0) || (stableSuccess > 0 && stableFailure > 0) ||
-      (prereleaseSuccess > 0 && prereleaseFailure > 0)) {
+  const hasInconsistentStatus = (statuses: CellStatus[]): boolean => {
+    const normalized = statuses.filter((status) => status !== 'skipped');
+    return new Set(normalized).size > 1;
+  };
+
+  if (
+    hasInconsistentStatus(nightlyStatuses) ||
+    hasInconsistentStatus(stableStatuses) ||
+    hasInconsistentStatus(prereleaseStatuses)
+  ) {
     return 'inconsistent';
+  }
+
+  if (nightlyStatuses.some((status) => status === 'warning')) {
+    return 'warning';
   }
 
   return 'ok';
@@ -96,6 +112,9 @@ async function openLogsInNewTab(
     const res = result.cbt[command][backend];
     content += `=== ${command.toUpperCase()} - ${backend} ===\n`;
     content += `Status: ${res.status}\n`;
+    if (res.status === 'WarningFailure' && 'matchedWarnings' in res && res.matchedWarnings.length > 0) {
+      content += `Matched warnings: ${res.matchedWarnings.join(', ')}\n`;
+    }
     if (res.status !== 'Skipped' && 'stdout_path' in res && 'stderr_path' in res) {
       if ('start_time' in res) content += `Start Time: ${res.start_time}\n`;
       if ('elapsed' in res) content += `Elapsed: ${res.elapsed}ms\n`;
@@ -130,7 +149,7 @@ function DetailCell({
   command: 'check' | 'build' | 'test';
   backend: 'wasm' | 'wasm-gc' | 'js' | 'native';
 }) {
-  let status: 'success' | 'failure' | 'skipped' | 'error' = 'skipped';
+  let status: CellStatus = 'skipped';
 
   if (result && result.cbt) {
     const res = result.cbt[command][backend];
@@ -141,6 +160,7 @@ function DetailCell({
 
   const colors = {
     success: '#22c55e',
+    warning: '#d97706',
     failure: '#ef4444',
     skipped: '#94a3b8',
     error: '#f97316',
@@ -148,6 +168,7 @@ function DetailCell({
 
   const labels = {
     success: '✓',
+    warning: 'W',
     failure: '✗',
     skipped: '-',
     error: '!',
@@ -173,6 +194,7 @@ function DetailCell({
 function LabelCell({ label }: { label: string }) {
   const colors = {
     regression: '#dc2626',
+    warning: '#d97706',
     inconsistent: '#f59e0b',
     ok: '#16a34a',
     '': '#64748b',
@@ -267,7 +289,7 @@ function App() {
   }
 
   rows.sort((a, b) => {
-    const priority = { regression: 0, inconsistent: 1, ok: 2, '': 3 };
+    const priority = { regression: 0, warning: 1, inconsistent: 2, ok: 3, '': 4 };
     return priority[a.label] - priority[b.label];
   });
 
@@ -378,6 +400,11 @@ function App() {
           </div>
           <div>
             <span
+              style="display: inline-block; width: 20px; height: 20px; background-color: #d97706; margin-right: 5px;"
+            ></span>WarningFailure
+          </div>
+          <div>
+            <span
               style="display: inline-block; width: 20px; height: 20px; background-color: #ef4444; margin-right: 5px;"
             ></span>Failure
           </div>
@@ -397,6 +424,11 @@ function App() {
             <strong
               style="display: inline-block; padding: 2px 8px; background-color: #dc2626; color: white; margin-right: 5px;"
             >regression</strong>Nightly failed but stable succeeded
+          </div>
+          <div>
+            <strong
+              style="display: inline-block; padding: 2px 8px; background-color: #d97706; color: white; margin-right: 5px;"
+            >warning</strong>Nightly failed due configured warning checks
           </div>
           <div>
             <strong
