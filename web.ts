@@ -11,20 +11,30 @@ type DataMap = {
   };
 };
 
-type Platform = 'mac' | 'linux' | 'windows';
-type Channel = 'stable' | 'nightly' | 'pre-release';
+const PLATFORMS = ['mac', 'linux', 'windows'] as const;
+const CHANNELS = ['stable', 'nightly', 'pre-release'] as const;
+const COMMANDS = ['check', 'build', 'test'] as const;
+const BACKENDS = ['wasm', 'wasm-gc', 'js', 'native'] as const;
+
+const ENVIRONMENTS = PLATFORMS.flatMap((platform) => CHANNELS.map((channel) => `${platform}/${channel}` as const));
+
+type Platform = (typeof PLATFORMS)[number];
+type Channel = (typeof CHANNELS)[number];
+type EnvironmentKey = (typeof ENVIRONMENTS)[number];
 type Label = 'regression' | 'warning' | 'inconsistent' | 'ok' | '';
 type FilterLabel = 'all' | 'regression' | 'warning' | 'inconsistent' | 'ok';
 type CellStatus = 'success' | 'warning' | 'failure' | 'skipped' | 'error';
 
-type EnvironmentKey = `${Platform}/${Channel}`;
+type RowData = {
+  identifier: string;
+  results: Record<EnvironmentKey, BuildResult | null>;
+  statuses: Record<EnvironmentKey, CellStatus>;
+  label: Label;
+  reason: string;
+  issueCount: number;
+};
 
-const platforms: Platform[] = ['mac', 'linux', 'windows'];
-const channels: Channel[] = ['stable', 'nightly', 'pre-release'];
-const commands = ['check', 'build', 'test'] as const;
-const backends = ['wasm', 'wasm-gc', 'js', 'native'] as const;
-
-const statusColors: Record<CellStatus, string> = {
+const STATUS_COLORS: Record<CellStatus, string> = {
   success: '#22c55e',
   warning: '#d97706',
   failure: '#ef4444',
@@ -32,7 +42,7 @@ const statusColors: Record<CellStatus, string> = {
   error: '#f97316',
 };
 
-const statusLabels: Record<CellStatus, string> = {
+const STATUS_LABELS: Record<CellStatus, string> = {
   success: 'S',
   warning: 'W',
   failure: 'F',
@@ -40,21 +50,41 @@ const statusLabels: Record<CellStatus, string> = {
   error: 'E',
 };
 
-type RowData = {
-  identifier: string;
-  source: BuildResult['source'];
-  'mac/nightly': BuildResult | null;
-  'mac/stable': BuildResult | null;
-  'mac/pre-release': BuildResult | null;
-  'linux/nightly': BuildResult | null;
-  'linux/stable': BuildResult | null;
-  'linux/pre-release': BuildResult | null;
-  'windows/nightly': BuildResult | null;
-  'windows/stable': BuildResult | null;
-  'windows/pre-release': BuildResult | null;
-  label: Label;
-  reason: string;
+const LABEL_COLORS: Record<Label, string> = {
+  regression: '#dc2626',
+  warning: '#d97706',
+  inconsistent: '#f59e0b',
+  ok: '#16a34a',
+  '': '#64748b',
 };
+
+const LABEL_PRIORITY: Record<Label, number> = {
+  regression: 0,
+  warning: 1,
+  inconsistent: 2,
+  ok: 3,
+  '': 4,
+};
+
+function envKey(platform: Platform, channel: Channel): EnvironmentKey {
+  return `${platform}/${channel}`;
+}
+
+function createEmptyResults(): Record<EnvironmentKey, BuildResult | null> {
+  const results = {} as Record<EnvironmentKey, BuildResult | null>;
+  for (const env of ENVIRONMENTS) {
+    results[env] = null;
+  }
+  return results;
+}
+
+function createEmptyStatuses(): Record<EnvironmentKey, CellStatus> {
+  const statuses = {} as Record<EnvironmentKey, CellStatus>;
+  for (const env of ENVIRONMENTS) {
+    statuses[env] = 'skipped';
+  }
+  return statuses;
+}
 
 function getIdentifier(source: BuildResult['source']): string {
   if (source.type === 'mooncakes') {
@@ -75,35 +105,43 @@ function getOverallStatus(result: BuildResult | null): CellStatus {
   if (result.error) return 'error';
   if (!result.cbt) return 'skipped';
 
-  let hasWarningFailure = false;
-  for (const cmd of commands) {
-    for (const backend of backends) {
-      const res = result.cbt[cmd][backend];
-      if (res.status === 'Failure') return 'failure';
-      if (res.status === 'WarningFailure') hasWarningFailure = true;
+  let hasWarning = false;
+  for (const command of COMMANDS) {
+    for (const backend of BACKENDS) {
+      const status = result.cbt[command][backend].status;
+      if (status === 'Failure') return 'failure';
+      if (status === 'WarningFailure') hasWarning = true;
     }
   }
 
-  return hasWarningFailure ? 'warning' : 'success';
+  return hasWarning ? 'warning' : 'success';
 }
 
-function getEnvironmentStatuses(row: RowData): Record<EnvironmentKey, CellStatus> {
-  const statuses = {} as Record<EnvironmentKey, CellStatus>;
-  for (const platform of platforms) {
-    for (const channel of channels) {
-      const key = `${platform}/${channel}` as EnvironmentKey;
-      statuses[key] = getOverallStatus(row[key]);
+function isIssueStatus(status: CellStatus): boolean {
+  return status === 'failure' || status === 'warning' || status === 'error';
+}
+
+function countResultIssues(result: BuildResult | null): number {
+  if (!result) return 0;
+  if (result.error) return 1;
+  if (!result.cbt) return 0;
+
+  let issueCount = 0;
+  for (const command of COMMANDS) {
+    for (const backend of BACKENDS) {
+      if (isIssueStatus(getResultStatus(result.cbt[command][backend]))) {
+        issueCount += 1;
+      }
     }
   }
-  return statuses;
+
+  return issueCount;
 }
 
-function buildReasonAndLabel(row: RowData): { label: Label; reason: string } {
-  const statuses = getEnvironmentStatuses(row);
-
-  for (const platform of platforms) {
-    const nightly = statuses[`${platform}/nightly`];
-    const stable = statuses[`${platform}/stable`];
+function classifyRow(statuses: Record<EnvironmentKey, CellStatus>): { label: Label; reason: string } {
+  for (const platform of PLATFORMS) {
+    const nightly = statuses[envKey(platform, 'nightly')];
+    const stable = statuses[envKey(platform, 'stable')];
     if (nightly === 'failure' && stable === 'success') {
       return {
         label: 'regression',
@@ -112,9 +150,9 @@ function buildReasonAndLabel(row: RowData): { label: Label; reason: string } {
     }
   }
 
-  for (const platform of platforms) {
-    const nightly = statuses[`${platform}/nightly`];
-    const stable = statuses[`${platform}/stable`];
+  for (const platform of PLATFORMS) {
+    const nightly = statuses[envKey(platform, 'nightly')];
+    const stable = statuses[envKey(platform, 'stable')];
     if (nightly === 'warning' && stable === 'success') {
       return {
         label: 'warning',
@@ -123,38 +161,35 @@ function buildReasonAndLabel(row: RowData): { label: Label; reason: string } {
     }
   }
 
-  const inconsistentReasons: string[] = [];
-
-  for (const channel of channels) {
-    const platformStates = platforms.map((platform) => {
-      const key = `${platform}/${channel}` as EnvironmentKey;
-      return `${platform}:${statuses[key]}`;
+  for (const channel of CHANNELS) {
+    const states = PLATFORMS.map((platform) => {
+      const status = statuses[envKey(platform, channel)];
+      return `${platform}:${status}`;
     });
-    const normalized = platformStates.map((s) => s.split(':')[1]).filter((s) => s !== 'skipped');
-    if (new Set(normalized).size > 1) {
-      inconsistentReasons.push(`${channel} differs across OS (${platformStates.join(', ')})`);
+    const unique = new Set(states.map((item) => item.split(':')[1]).filter((status) => status !== 'skipped'));
+    if (unique.size > 1) {
+      return {
+        label: 'inconsistent',
+        reason: `${channel} differs across OS (${states.join(', ')})`,
+      };
     }
   }
 
-  for (const platform of platforms) {
-    const channelStates = channels.map((channel) => {
-      const key = `${platform}/${channel}` as EnvironmentKey;
-      return `${channel}:${statuses[key]}`;
+  for (const platform of PLATFORMS) {
+    const states = CHANNELS.map((channel) => {
+      const status = statuses[envKey(platform, channel)];
+      return `${channel}:${status}`;
     });
-    const normalized = channelStates.map((s) => s.split(':')[1]).filter((s) => s !== 'skipped');
-    if (new Set(normalized).size > 1) {
-      inconsistentReasons.push(`${platform} differs across channels (${channelStates.join(', ')})`);
+    const unique = new Set(states.map((item) => item.split(':')[1]).filter((status) => status !== 'skipped'));
+    if (unique.size > 1) {
+      return {
+        label: 'inconsistent',
+        reason: `${platform} differs across channels (${states.join(', ')})`,
+      };
     }
   }
 
-  if (inconsistentReasons.length > 0) {
-    return {
-      label: 'inconsistent',
-      reason: inconsistentReasons[0],
-    };
-  }
-
-  if (platforms.some((platform) => statuses[`${platform}/nightly`] === 'warning')) {
+  if (PLATFORMS.some((platform) => statuses[envKey(platform, 'nightly')] === 'warning')) {
     return {
       label: 'warning',
       reason: 'Nightly has warning-driven failures',
@@ -167,29 +202,88 @@ function buildReasonAndLabel(row: RowData): { label: Label; reason: string } {
   };
 }
 
-function getIssueCount(result: BuildResult | null): number {
-  if (!result) return 0;
-  if (result.error) return 1;
-  if (!result.cbt) return 0;
+function buildRows(data: DataMap): RowData[] {
+  const rowMap = new Map<string, RowData>();
 
-  let issueCount = 0;
-  for (const cmd of commands) {
-    for (const backend of backends) {
-      const status = getResultStatus(result.cbt[cmd][backend]);
-      if (status === 'failure' || status === 'warning' || status === 'error') {
-        issueCount += 1;
+  for (const env of ENVIRONMENTS) {
+    const envData = data[env];
+    if (!envData) continue;
+
+    for (const result of envData.results) {
+      const identifier = getIdentifier(result.source);
+      if (!rowMap.has(identifier)) {
+        rowMap.set(identifier, {
+          identifier,
+          results: createEmptyResults(),
+          statuses: createEmptyStatuses(),
+          label: '',
+          reason: '',
+          issueCount: 0,
+        });
       }
+
+      rowMap.get(identifier)!.results[env] = result;
     }
   }
-  return issueCount;
+
+  const rows = Array.from(rowMap.values());
+  for (const row of rows) {
+    for (const env of ENVIRONMENTS) {
+      row.statuses[env] = getOverallStatus(row.results[env]);
+    }
+
+    const classification = classifyRow(row.statuses);
+    row.label = classification.label;
+    row.reason = classification.reason;
+    row.issueCount = ENVIRONMENTS.reduce((sum, env) => sum + countResultIssues(row.results[env]), 0);
+  }
+
+  rows.sort((a, b) => LABEL_PRIORITY[a.label] - LABEL_PRIORITY[b.label]);
+  return rows;
+}
+
+function filterRows(
+  rows: RowData[],
+  labelFilter: FilterLabel,
+  search: string,
+  showOkRows: boolean,
+): RowData[] {
+  const keyword = search.trim().toLowerCase();
+
+  return rows.filter((row) => {
+    if (!showOkRows && row.label === 'ok') return false;
+    if (labelFilter !== 'all' && row.label !== labelFilter) return false;
+    if (keyword.length > 0 && !row.identifier.toLowerCase().includes(keyword)) return false;
+    return true;
+  });
+}
+
+function countLabels(rows: RowData[]): Record<FilterLabel, number> {
+  const counts: Record<FilterLabel, number> = {
+    all: rows.length,
+    regression: 0,
+    warning: 0,
+    inconsistent: 0,
+    ok: 0,
+  };
+
+  for (const row of rows) {
+    if (row.label === 'regression') counts.regression += 1;
+    if (row.label === 'warning') counts.warning += 1;
+    if (row.label === 'inconsistent') counts.inconsistent += 1;
+    if (row.label === 'ok') counts.ok += 1;
+  }
+
+  return counts;
 }
 
 async function openLogsInNewTab(
   result: BuildResult | null,
-  command: (typeof commands)[number],
-  backend: (typeof backends)[number],
+  command: (typeof COMMANDS)[number],
+  backend: (typeof BACKENDS)[number],
 ) {
   if (!result) return;
+
   let content = '';
   if (result.error) {
     content += `Error: ${result.error}\n\n`;
@@ -200,88 +294,82 @@ async function openLogsInNewTab(
     if (res.status === 'WarningFailure' && 'matchedWarnings' in res && res.matchedWarnings.length > 0) {
       content += `Matched warnings: ${res.matchedWarnings.join(', ')}\n`;
     }
+
     if (res.status !== 'Skipped' && 'stdout_path' in res && 'stderr_path' in res) {
       if ('start_time' in res) content += `Start Time: ${res.start_time}\n`;
       if ('elapsed' in res) content += `Elapsed: ${res.elapsed}ms\n`;
       content += '\n';
+
       try {
         const stderrResp = await fetch(`${res.stderr_path}`);
         const stderrText = stderrResp.ok ? await stderrResp.text() : `Failed to fetch stderr (${stderrResp.status})`;
         const stdoutResp = await fetch(`${res.stdout_path}`);
         const stdoutText = stdoutResp.ok ? await stdoutResp.text() : `Failed to fetch stdout (${stdoutResp.status})`;
-        content += 'STDERR:\n' + stderrText + '\n\n';
-        content += 'STDOUT:\n' + stdoutText + '\n\n';
-      } catch (e) {
-        content += `Error fetching logs: ${e instanceof Error ? e.message : String(e)}\n`;
+        content += `STDERR:\n${stderrText}\n\n`;
+        content += `STDOUT:\n${stdoutText}\n\n`;
+      } catch (error) {
+        content += `Error fetching logs: ${error instanceof Error ? error.message : String(error)}\n`;
       }
     }
   }
 
-  if (!content.trim()) content = 'No stderr/stdout output available.';
+  if (!content.trim()) {
+    content = 'No stderr/stdout output available.';
+  }
+
   const blob = new Blob([content], { type: 'text/plain;charset=utf8' });
   const url = URL.createObjectURL(blob);
   const newTab = globalThis.open(url, '_blank');
-  if (newTab) setTimeout(() => URL.revokeObjectURL(url), 1000);
+  if (newTab) {
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
 }
 
 function SummaryCell({ status }: { status: CellStatus }) {
   return html`
     <td
-      style="text-align: center; padding: 6px; border: 1px solid #cbd5e1; background: ${statusColors[
+      style="text-align: center; padding: 6px; border: 1px solid #cbd5e1; background: ${STATUS_COLORS[
         status
       ]}; color: white; font-weight: 700; font-size: 11px;"
     >
-      ${statusLabels[status]}
+      ${STATUS_LABELS[status]}
     </td>
   `;
 }
 
-function CommandCell({
+function DetailCell({
   result,
   command,
   backend,
 }: {
   result: BuildResult | null;
-  command: (typeof commands)[number];
-  backend: (typeof backends)[number];
+  command: (typeof COMMANDS)[number];
+  backend: (typeof BACKENDS)[number];
 }) {
   let status: CellStatus = 'skipped';
-
   if (result?.cbt) {
     status = getResultStatus(result.cbt[command][backend]);
   } else if (result?.error) {
     status = 'error';
   }
 
-  const handleClick = () => {
-    openLogsInNewTab(result, command, backend);
-  };
-
   return html`
     <td
-      style="text-align: center; padding: 4px; border: 1px solid #cbd5e1; background: ${statusColors[
+      style="text-align: center; padding: 4px; border: 1px solid #cbd5e1; background: ${STATUS_COLORS[
         status
       ]}; color: white; cursor: pointer; font-weight: 700;"
       title="Click to open ${command} ${backend} logs"
-      onClick="${handleClick}"
+      onClick="${() => openLogsInNewTab(result, command, backend)}"
     >
-      ${statusLabels[status]}
+      ${STATUS_LABELS[status]}
     </td>
   `;
 }
 
 function LabelBadge({ label }: { label: Label }) {
-  const colors: Record<Label, string> = {
-    regression: '#dc2626',
-    warning: '#d97706',
-    inconsistent: '#f59e0b',
-    ok: '#16a34a',
-    '': '#64748b',
-  };
-
   return html`
     <span
-      style="display: inline-block; padding: 2px 8px; border-radius: 999px; background: ${colors[
+      style="display: inline-block; padding: 2px 8px; border-radius: 999px; background: ${LABEL_COLORS[
         label
       ]}; color: white; font-weight: 700; font-size: 11px;"
     >
@@ -297,41 +385,34 @@ function ExpandedDetails({
   row: RowData;
   showAllDetails: boolean;
 }) {
-  const detailRows: Array<{ env: EnvironmentKey; backend: (typeof backends)[number] }> = [];
-
-  for (const platform of platforms) {
-    for (const channel of channels) {
-      const env = `${platform}/${channel}` as EnvironmentKey;
-      const result = row[env];
-      if (!result?.cbt) continue;
-
-      for (const backend of backends) {
-        if (showAllDetails) {
-          detailRows.push({ env, backend });
-          continue;
-        }
-
-        const statuses = commands.map((command) => getResultStatus(result.cbt![command][backend]));
-        const hasIssue = statuses.some((status) => status === 'failure' || status === 'warning' || status === 'error');
-        if (hasIssue) {
-          detailRows.push({ env, backend });
-        }
-      }
-    }
-  }
-
   const envErrors: Array<{ env: EnvironmentKey; message: string }> = [];
-  for (const platform of platforms) {
-    for (const channel of channels) {
-      const env = `${platform}/${channel}` as EnvironmentKey;
-      const result = row[env];
-      if (result?.error) {
-        envErrors.push({ env, message: result.error });
+  const detailRows: Array<{ env: EnvironmentKey; backend: (typeof BACKENDS)[number] }> = [];
+
+  for (const env of ENVIRONMENTS) {
+    const result = row.results[env];
+    if (result?.error) {
+      envErrors.push({ env, message: result.error });
+    }
+
+    if (!result?.cbt) continue;
+
+    for (const backend of BACKENDS) {
+      if (showAllDetails) {
+        detailRows.push({ env, backend });
+        continue;
+      }
+
+      const hasIssue = COMMANDS.some((command) => {
+        const status = getResultStatus(result.cbt![command][backend]);
+        return isIssueStatus(status);
+      });
+      if (hasIssue) {
+        detailRows.push({ env, backend });
       }
     }
   }
 
-  if (detailRows.length === 0 && envErrors.length === 0) {
+  if (envErrors.length === 0 && detailRows.length === 0) {
     return html`
       <div style="padding: 8px 0; color: #64748b; font-size: 12px;">No detail rows for current filter.</div>
     `;
@@ -366,20 +447,19 @@ function ExpandedDetails({
               </tr>
             </thead>
             <tbody>
-              ${detailRows.map(({ env, backend }, idx) => {
-                const result = row[env];
-                return html`
+              ${detailRows.map(({ env, backend }, idx) =>
+                html`
                   <tr style="background: ${idx % 2 === 0 ? '#ffffff' : '#f8fafc'};">
                     <td style="padding: 6px; border: 1px solid #cbd5e1; font-family: monospace;">${env}</td>
                     <td style="padding: 6px; border: 1px solid #cbd5e1; font-family: monospace;">${backend}</td>
-                    ${commands.map((command) =>
+                    ${COMMANDS.map((command) =>
                       html`
-                        <${CommandCell} result="${result}" command="${command}" backend="${backend}" />
+                        <${DetailCell} result="${row.results[env]}" command="${command}" backend="${backend}" />
                       `
                     )}
                   </tr>
-                `;
-              })}
+                `
+              )}
             </tbody>
           </table>
         `
@@ -400,31 +480,31 @@ function App() {
   useEffect(() => {
     async function fetchData() {
       const newData: DataMap = {};
-      const keys: EnvironmentKey[] = [];
-
-      for (const os of platforms) {
-        for (const channel of channels) {
-          keys.push(`${os}/${channel}` as EnvironmentKey);
-        }
-      }
 
       await Promise.all(
-        keys.map(async (key) => {
+        ENVIRONMENTS.map(async (env) => {
           try {
-            const response = await fetch(`data/${key}/data.jsonl`);
-            const results = [];
-            const reader = response.body!.pipeThrough(new TextDecoderStream()).pipeThrough(new TextLineStream())
+            const response = await fetch(`data/${env}/data.jsonl`);
+            const results: BuildResult[] = [];
+            const reader = response.body?.pipeThrough(new TextDecoderStream()).pipeThrough(new TextLineStream())
               .pipeThrough(new JsonParseStream()).getReader();
+
+            if (!reader) {
+              newData[env] = { metadata: null, results: [] };
+              return;
+            }
+
             const { value: metadata } = await reader.read();
             while (true) {
               const { value, done } = await reader.read();
               if (done) break;
               results.push(value as unknown as BuildResult);
             }
-            newData[key] = { metadata: metadata as unknown as MetaData, results };
+
+            newData[env] = { metadata: metadata as unknown as MetaData, results };
           } catch (error) {
-            console.error(`Error fetching data for ${key}:`, error);
-            newData[key] = { metadata: null, results: [] };
+            console.error(`Error fetching data for ${env}:`, error);
+            newData[env] = { metadata: null, results: [] };
           }
         }),
       );
@@ -436,80 +516,14 @@ function App() {
     fetchData();
   }, []);
 
-  const rows = useMemo(() => {
-    const output: RowData[] = [];
-    const identifierMap = new Map<string, RowData>();
-
-    for (const [key, value] of Object.entries(data)) {
-      const envKey = key as EnvironmentKey;
-      for (const result of value.results) {
-        const id = getIdentifier(result.source);
-
-        if (!identifierMap.has(id)) {
-          identifierMap.set(id, {
-            identifier: id,
-            source: result.source,
-            'mac/nightly': null,
-            'mac/stable': null,
-            'mac/pre-release': null,
-            'linux/nightly': null,
-            'linux/stable': null,
-            'linux/pre-release': null,
-            'windows/nightly': null,
-            'windows/stable': null,
-            'windows/pre-release': null,
-            label: '',
-            reason: '',
-          });
-        }
-
-        const row = identifierMap.get(id)!;
-        row[envKey] = result;
-      }
-    }
-
-    for (const row of identifierMap.values()) {
-      const { label, reason } = buildReasonAndLabel(row);
-      row.label = label;
-      row.reason = reason;
-      output.push(row);
-    }
-
-    output.sort((a, b) => {
-      const priority: Record<Label, number> = { regression: 0, warning: 1, inconsistent: 2, ok: 3, '': 4 };
-      return priority[a.label] - priority[b.label];
-    });
-
-    return output;
-  }, [data]);
-
-  const filteredRows = useMemo(() => {
-    return rows.filter((row) => {
-      if (!showOkRows && row.label === 'ok') return false;
-      if (labelFilter !== 'all' && row.label !== labelFilter) return false;
-      if (search.trim().length > 0 && !row.identifier.toLowerCase().includes(search.trim().toLowerCase())) return false;
-      return true;
-    });
-  }, [rows, labelFilter, search, showOkRows]);
-
-  const counts = useMemo(() => {
-    const counter: Record<FilterLabel, number> = {
-      all: rows.length,
-      regression: 0,
-      warning: 0,
-      inconsistent: 0,
-      ok: 0,
-    };
-
-    for (const row of rows) {
-      if (row.label === 'regression') counter.regression += 1;
-      if (row.label === 'warning') counter.warning += 1;
-      if (row.label === 'inconsistent') counter.inconsistent += 1;
-      if (row.label === 'ok') counter.ok += 1;
-    }
-
-    return counter;
-  }, [rows]);
+  const rows = useMemo(() => buildRows(data), [data]);
+  const filteredRows = useMemo(() => filterRows(rows, labelFilter, search, showOkRows), [
+    rows,
+    labelFilter,
+    search,
+    showOkRows,
+  ]);
+  const counts = useMemo(() => countLabels(rows), [rows]);
 
   const toggleExpanded = (id: string) => {
     setExpandedRows((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -528,7 +542,7 @@ function App() {
       <h1 style="margin: 0 0 12px 0;">MoonBit Build Dashboard</h1>
 
       <div style="margin-bottom: 14px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
-        ${(['all', 'regression', 'warning', 'inconsistent', 'ok'] as FilterLabel[]).map((label) =>
+        ${(['all', 'regression', 'warning', 'inconsistent', 'ok'] as const).map((label) =>
           html`
             <button
               style="border: 1px solid #cbd5e1; background: ${labelFilter === label
@@ -544,14 +558,20 @@ function App() {
         )}
 
         <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; margin-left: 8px;">
-          <input type="checkbox" checked="${showOkRows}" onChange="${(e: Event) =>
-            setShowOkRows((e.target as HTMLInputElement).checked)}" />
+          <input
+            type="checkbox"
+            checked="${showOkRows}"
+            onChange="${(event: Event) => setShowOkRows((event.target as HTMLInputElement).checked)}"
+          />
           show ok rows
         </label>
 
         <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px;">
-          <input type="checkbox" checked="${showAllDetails}" onChange="${(e: Event) =>
-            setShowAllDetails((e.target as HTMLInputElement).checked)}" />
+          <input
+            type="checkbox"
+            checked="${showAllDetails}"
+            onChange="${(event: Event) => setShowAllDetails((event.target as HTMLInputElement).checked)}"
+          />
           show all details
         </label>
 
@@ -559,7 +579,7 @@ function App() {
           type="text"
           placeholder="Search package/repo"
           value="${search}"
-          onInput="${(e: Event) => setSearch((e.target as HTMLInputElement).value)}"
+          onInput="${(event: Event) => setSearch((event.target as HTMLInputElement).value)}"
           style="margin-left: auto; min-width: 220px; border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px 8px;"
         />
       </div>
@@ -572,40 +592,35 @@ function App() {
         <thead>
           <tr style="background: #1e293b; color: white;">
             <th rowspan="2" style="padding: 8px; border: 1px solid #cbd5e1; width: 280px;">Source</th>
-            <th colspan="3" style="padding: 8px; border: 1px solid #cbd5e1;">mac</th>
-            <th colspan="3" style="padding: 8px; border: 1px solid #cbd5e1;">linux</th>
-            <th colspan="3" style="padding: 8px; border: 1px solid #cbd5e1;">windows</th>
+            ${PLATFORMS.map((platform) =>
+              html`
+                <th colspan="${CHANNELS.length}" style="padding: 8px; border: 1px solid #cbd5e1;">${platform}</th>
+              `
+            )}
             <th rowspan="2" style="padding: 8px; border: 1px solid #cbd5e1; width: 95px;">Label</th>
             <th rowspan="2" style="padding: 8px; border: 1px solid #cbd5e1; width: 280px;">Reason</th>
             <th rowspan="2" style="padding: 8px; border: 1px solid #cbd5e1; width: 90px;">Issues</th>
             <th rowspan="2" style="padding: 8px; border: 1px solid #cbd5e1; width: 90px;">Details</th>
           </tr>
           <tr style="background: #334155; color: white;">
-            ${platforms.map(() =>
-              channels.map((channel) =>
-                html`
-                  <th style="padding: 6px; border: 1px solid #cbd5e1;">${channel === 'pre-release'
-                    ? 'pre'
-                    : channel}</th>
-                `
-              )
+            ${PLATFORMS.map((platform) =>
+              CHANNELS.map((channel) => {
+                const env = envKey(platform, channel);
+                const shortName = channel === 'pre-release' ? 'pre' : channel;
+                return html`
+                  <th key="${env}" style="padding: 6px; border: 1px solid #cbd5e1;">${shortName}</th>
+                `;
+              })
             )}
           </tr>
         </thead>
 
         <tbody>
-          ${filteredRows.map((row, idx) => {
+          ${filteredRows.map((row, index) => {
             const isExpanded = !!expandedRows[row.identifier];
-            const issueCount = channels.reduce((count, channel) => {
-              return count +
-                platforms.reduce(
-                  (acc, platform) => acc + getIssueCount(row[`${platform}/${channel}` as EnvironmentKey]),
-                  0,
-                );
-            }, 0);
 
             return html`
-              <tr style="background: ${idx % 2 === 0 ? '#f8fafc' : 'white'};">
+              <tr style="background: ${index % 2 === 0 ? '#f8fafc' : 'white'};">
                 <td
                   style="padding: 6px; border: 1px solid #cbd5e1; font-family: monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"
                   title="${row.identifier}"
@@ -613,11 +628,11 @@ function App() {
                   ${row.identifier}
                 </td>
 
-                ${platforms.map((platform) =>
-                  channels.map((channel) => {
-                    const status = getOverallStatus(row[`${platform}/${channel}` as EnvironmentKey]);
+                ${PLATFORMS.map((platform) =>
+                  CHANNELS.map((channel) => {
+                    const env = envKey(platform, channel);
                     return html`
-                      <${SummaryCell} status="${status}" />
+                      <${SummaryCell} key="${env}" status="${row.statuses[env]}" />
                     `;
                   })
                 )}
@@ -625,7 +640,8 @@ function App() {
                 <td style="padding: 6px; border: 1px solid #cbd5e1; text-align: center;"><${LabelBadge} label="${row
                   .label}" /></td>
                 <td style="padding: 6px; border: 1px solid #cbd5e1; color: #334155;">${row.reason}</td>
-                <td style="padding: 6px; border: 1px solid #cbd5e1; text-align: center; font-weight: 700;">${issueCount}</td>
+                <td style="padding: 6px; border: 1px solid #cbd5e1; text-align: center; font-weight: 700;">${row
+                  .issueCount}</td>
                 <td style="padding: 6px; border: 1px solid #cbd5e1; text-align: center;">
                   <button
                     onClick="${() => toggleExpanded(row.identifier)}"
@@ -657,11 +673,11 @@ function App() {
           <strong>Legend:</strong> S=Success, W=WarningFailure, F=Failure, -=Skipped, E=Source Error
         </div>
         <div style="display: flex; gap: 14px; flex-wrap: wrap;">
-          ${(['success', 'warning', 'failure', 'skipped', 'error'] as CellStatus[]).map((status) =>
+          ${(['success', 'warning', 'failure', 'skipped', 'error'] as const).map((status) =>
             html`
               <div>
                 <span
-                  style="display: inline-block; width: 12px; height: 12px; background: ${statusColors[
+                  style="display: inline-block; width: 12px; height: 12px; background: ${STATUS_COLORS[
                     status
                   ]}; margin-right: 4px;"
                 ></span>${status}
