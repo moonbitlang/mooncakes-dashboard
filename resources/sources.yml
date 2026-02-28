@@ -204,6 +204,36 @@ exclude:
   - pai2shub/alg
   - FlyCloudC/scheme
   - illusory0x0/base
+  # inactive
+  - illusory0x0/case_conv
+  - illusory0x0/clang
+  - illusory0x0/clone
+  - illusory0x0/coerce
+  - illusory0x0/color
+  - illusory0x0/conv
+  - illusory0x0/fmt
+  - illusory0x0/fun
+  - illusory0x0/fuzzy_match
+  - illusory0x0/graphviz
+  - illusory0x0/immut_deque
+  - illusory0x0/inspect
+  - illusory0x0/intrinsic
+  - illusory0x0/lazy
+  - illusory0x0/lexer
+  - illusory0x0/memory
+  - illusory0x0/moonbit-wasm-nodejs-ts-template
+  - illusory0x0/moonbit-wasm-vite-ts-template
+  - illusory0x0/native
+  - illusory0x0/parserc
+  - illusory0x0/path
+  - illusory0x0/posix
+  - illusory0x0/printer
+  - illusory0x0/qpainter
+  - illusory0x0/quote
+  - illusory0x0/rijndael
+  - illusory0x0/ryu
+  - illusory0x0/simple_parserc
+  - illusory0x0/string_of_bytes
 
   - moonbitlang/lex # moonlex-old
   - moonbitlang/mbt-lexer
