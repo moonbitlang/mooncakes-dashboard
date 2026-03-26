@@ -15,7 +15,5 @@ mooncakes:
     version: 0.1.0
   - name: amor2025/biginteger
     version: 0.1.0
-  - name: BigOrangeQWQ/wit-wasi-io
-    version: 0.2.*
 
 exclude: []

@@ -2,6 +2,11 @@
 
 import { CommandOutput } from './types.ts';
 
+const MOON_ENV = {
+  MOON_IGNORE_PREBUILD: '1',
+  MOON_NO_WORKSPACE: '1',
+} as const;
+
 export class MoonOpsError extends Error {
   constructor(public cmd: string, public originalError: Error) {
     super(`Moon operations error: ${cmd} - ${originalError.message}`);
@@ -36,7 +41,12 @@ export async function runMoon(
 
   try {
     const signal = new AbortController();
-    const process = new Deno.Command('moon', { args, cwd: workdir, signal: signal.signal });
+    const process = new Deno.Command('moon', {
+      args,
+      cwd: workdir,
+      env: MOON_ENV,
+      signal: signal.signal,
+    });
     const timeout = setTimeout(() => {
       signal.abort();
     }, 120000); // 2 minutes timeout

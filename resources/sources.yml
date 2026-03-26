@@ -96,10 +96,13 @@ exclude:
   - moonbitlang/json_deriving
 
   # out of maintenance
+  - BigOrangeQWQ/Bits
   - colmugx/reader
   - BigOrangeQWQ/ImmuntableMultiSet
+  - BigOrangeQWQ/fmt
   - BigOrangeQWQ/immunt_multiset
   - BigOrangeQWQ/immut_multiset
+  - BigOrangeQWQ/ryu
   - 0Ayachi0/math
   - peter-jerry-ye/async
   - peter-jerry-ye/canvas
@@ -122,6 +125,17 @@ exclude:
   - illusory0x0/prettyprinter
   - justjoheinz/complex
   - BigOrangeQWQ/unification_table
+  - BigOrangeQWQ/uri
+  - BigOrangeQWQ/wasi-cli
+  - BigOrangeQWQ/wasi-clocks
+  - BigOrangeQWQ/wasi-filesystem
+  - BigOrangeQWQ/wasi-io
+  - BigOrangeQWQ/wasi-random
+  - BigOrangeQWQ/wasi-sockets
+  - BigOrangeQWQ/wit-ffi
+  - BigOrangeQWQ/wit-wasi-clocks
+  - BigOrangeQWQ/wit-wasi-io
+  - BigOrangeQWQ/wit-wasi-random
   - oboard/numoon
   - Guest0x0/HAMT
   - lijunchen/unstable_io
