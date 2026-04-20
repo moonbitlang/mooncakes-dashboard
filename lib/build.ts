@@ -52,14 +52,16 @@ function matchWarningFailures(output: string): string[] {
   return Array.from(matches);
 }
 
-function classifyStatus(
+async function classifyStatus(
+  workdir: string,
+  backend: Backend,
   command: MoonCommand,
   channel: 'stable' | 'nightly' | 'pre-release',
   result: CommandOutput,
-): { status: Status.Success } | { status: Status.Failure } | {
+): Promise<{ status: Status.Success } | { status: Status.Failure } | {
   status: Status.WarningFailure;
   matchedWarnings: string[];
-} {
+}> {
   if (result.success) {
     return { status: Status.Success };
   }
@@ -68,34 +70,15 @@ function classifyStatus(
   if (usesWarnList && command === 'check') {
     const matchedWarnings = matchWarningFailures(`${result.stderr}\n${result.stdout}`);
     if (matchedWarnings.length > 0) {
-      return { status: Status.WarningFailure, matchedWarnings };
+      try {
+        const rerun = await runMoon(workdir, getMoonArgs('check', backend, channel, false));
+        if (rerun.success) {
+          return { status: Status.WarningFailure, matchedWarnings };
+        }
+      } catch (_error) {
+        // Treat rerun failures conservatively as real check failures.
+      }
     }
-  }
-
-  return { status: Status.Failure };
-}
-
-async function classifyCheckResult(
-  workdir: string,
-  backend: Backend,
-  channel: 'stable' | 'nightly' | 'pre-release',
-  result: CommandOutput,
-): Promise<{ status: Status.Success } | { status: Status.Failure } | {
-  status: Status.WarningFailure;
-  matchedWarnings: string[];
-}> {
-  const classified = classifyStatus('check', channel, result);
-  if (classified.status !== Status.WarningFailure) {
-    return classified;
-  }
-
-  try {
-    const rerun = await runMoon(workdir, getMoonArgs('check', backend, channel, false));
-    if (rerun.success) {
-      return classified;
-    }
-  } catch (_error) {
-    // Treat rerun failures conservatively as real check failures.
   }
 
   return { status: Status.Failure };
@@ -113,9 +96,7 @@ export async function statMooncake(
   const slug = await makeLogSlug(source);
   try {
     const result = await runMoon(workdir, getMoonArgs(command, backend, channel));
-    const classified = command === 'check'
-      ? await classifyCheckResult(workdir, backend, channel, result)
-      : classifyStatus(command, channel, result);
+    const classified = await classifyStatus(workdir, backend, command, channel, result);
     const paths = await writeLogFiles(slug, dir, command, backend, result.stdout, result.stderr);
     if (classified.status === Status.WarningFailure) {
       return {
