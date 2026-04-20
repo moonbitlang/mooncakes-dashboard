@@ -24,6 +24,24 @@ const WARNING_FAILURE_PATTERNS = [
   { id: 'deprecated', pattern: /\bdeprecated\b/i },
 ] as const;
 
+function getMoonArgs(
+  command: MoonCommand,
+  backend: Backend,
+  channel: 'stable' | 'nightly' | 'pre-release',
+  includeWarnList = true,
+): string[] {
+  return [
+    command,
+    '--target',
+    backend,
+    '--frozen',
+    '--target-dir',
+    `target/${backend}`,
+    ...(command === 'test' ? ['--build-only'] : []),
+    ...(includeWarnList && (channel === 'nightly' || channel === 'pre-release') ? ['--warn-list', '@deprecated'] : []),
+  ];
+}
+
 function matchWarningFailures(output: string): string[] {
   const matches = new Set<string>();
   for (const { id, pattern } of WARNING_FAILURE_PATTERNS) {
@@ -57,6 +75,32 @@ function classifyStatus(
   return { status: Status.Failure };
 }
 
+async function classifyCheckResult(
+  workdir: string,
+  backend: Backend,
+  channel: 'stable' | 'nightly' | 'pre-release',
+  result: CommandOutput,
+): Promise<{ status: Status.Success } | { status: Status.Failure } | {
+  status: Status.WarningFailure;
+  matchedWarnings: string[];
+}> {
+  const classified = classifyStatus('check', channel, result);
+  if (classified.status !== Status.WarningFailure) {
+    return classified;
+  }
+
+  try {
+    const rerun = await runMoon(workdir, getMoonArgs('check', backend, channel, false));
+    if (rerun.success) {
+      return classified;
+    }
+  } catch (_error) {
+    // Treat rerun failures conservatively as real check failures.
+  }
+
+  return { status: Status.Failure };
+}
+
 export async function statMooncake(
   workdir: string,
   source: Mooncake,
@@ -68,17 +112,10 @@ export async function statMooncake(
   const startTime = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
   const slug = await makeLogSlug(source);
   try {
-    const result = await runMoon(workdir, [
-      command,
-      '--target',
-      backend,
-      '--frozen',
-      '--target-dir',
-      `target/${backend}`,
-      ...(command === 'test' ? ['--build-only'] : []),
-      ...(channel === 'nightly' || channel === 'pre-release' ? ['--warn-list', '@deprecated'] : []),
-    ]);
-    const classified = classifyStatus(command, channel, result);
+    const result = await runMoon(workdir, getMoonArgs(command, backend, channel));
+    const classified = command === 'check'
+      ? await classifyCheckResult(workdir, backend, channel, result)
+      : classifyStatus(command, channel, result);
     const paths = await writeLogFiles(slug, dir, command, backend, result.stdout, result.stderr);
     if (classified.status === Status.WarningFailure) {
       return {
