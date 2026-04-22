@@ -24,6 +24,24 @@ const WARNING_FAILURE_PATTERNS = [
   { id: 'deprecated', pattern: /\bdeprecated\b/i },
 ] as const;
 
+function getMoonArgs(
+  command: MoonCommand,
+  backend: Backend,
+  channel: 'stable' | 'nightly' | 'pre-release',
+  includeWarnList = true,
+): string[] {
+  return [
+    command,
+    '--target',
+    backend,
+    '--frozen',
+    '--target-dir',
+    `target/${backend}`,
+    ...(command === 'test' ? ['--build-only'] : []),
+    ...(includeWarnList && (channel === 'nightly' || channel === 'pre-release') ? ['--warn-list', '@deprecated'] : []),
+  ];
+}
+
 function matchWarningFailures(output: string): string[] {
   const matches = new Set<string>();
   for (const { id, pattern } of WARNING_FAILURE_PATTERNS) {
@@ -34,14 +52,16 @@ function matchWarningFailures(output: string): string[] {
   return Array.from(matches);
 }
 
-function classifyStatus(
+async function classifyStatus(
+  workdir: string,
+  backend: Backend,
   command: MoonCommand,
   channel: 'stable' | 'nightly' | 'pre-release',
   result: CommandOutput,
-): { status: Status.Success } | { status: Status.Failure } | {
+): Promise<{ status: Status.Success } | { status: Status.Failure } | {
   status: Status.WarningFailure;
   matchedWarnings: string[];
-} {
+}> {
   if (result.success) {
     return { status: Status.Success };
   }
@@ -50,7 +70,14 @@ function classifyStatus(
   if (usesWarnList && command === 'check') {
     const matchedWarnings = matchWarningFailures(`${result.stderr}\n${result.stdout}`);
     if (matchedWarnings.length > 0) {
-      return { status: Status.WarningFailure, matchedWarnings };
+      try {
+        const rerun = await runMoon(workdir, getMoonArgs('check', backend, channel, false));
+        if (rerun.success) {
+          return { status: Status.WarningFailure, matchedWarnings };
+        }
+      } catch (_error) {
+        // Treat rerun failures conservatively as real check failures.
+      }
     }
   }
 
@@ -68,17 +95,8 @@ export async function statMooncake(
   const startTime = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
   const slug = await makeLogSlug(source);
   try {
-    const result = await runMoon(workdir, [
-      command,
-      '--target',
-      backend,
-      '--frozen',
-      '--target-dir',
-      `target/${backend}`,
-      ...(command === 'test' ? ['--build-only'] : []),
-      ...(channel === 'nightly' || channel === 'pre-release' ? ['--warn-list', '@deprecated'] : []),
-    ]);
-    const classified = classifyStatus(command, channel, result);
+    const result = await runMoon(workdir, getMoonArgs(command, backend, channel));
+    const classified = await classifyStatus(workdir, backend, command, channel, result);
     const paths = await writeLogFiles(slug, dir, command, backend, result.stdout, result.stderr);
     if (classified.status === Status.WarningFailure) {
       return {
