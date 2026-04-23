@@ -98,7 +98,38 @@ async function matchWarningFailuresInLogs(result: CommandOutput): Promise<string
   return Array.from(matches);
 }
 
-async function classifyStatus(
+async function probeWarningOnlyFailure(
+  workdir: string,
+  backend: Backend,
+  channel: 'stable' | 'nightly' | 'pre-release',
+  result: CommandOutput,
+): Promise<string[] | null> {
+  const matchedWarnings = await matchWarningFailuresInLogs(result);
+  if (matchedWarnings.length === 0) {
+    return null;
+  }
+
+  const probeStdoutPath = await Deno.makeTempFile({ suffix: '.moon-check-probe.out.log' });
+  const probeStderrPath = await Deno.makeTempFile({ suffix: '.moon-check-probe.err.log' });
+
+  try {
+    const probe = await runMoon(
+      workdir,
+      getMoonArgs('check', backend, channel, false),
+      probeStdoutPath,
+      probeStderrPath,
+    );
+    return probe.success ? matchedWarnings : null;
+  } catch (_error) {
+    // Treat probe failures conservatively as real check failures.
+    return null;
+  } finally {
+    await Deno.remove(probeStdoutPath).catch(() => {});
+    await Deno.remove(probeStderrPath).catch(() => {});
+  }
+}
+
+async function classifyCommandResult(
   workdir: string,
   backend: Backend,
   command: MoonCommand,
@@ -116,26 +147,9 @@ async function classifyStatus(
 
   const usesWarnList = channel === 'nightly' || channel === 'pre-release';
   if (usesWarnList && command === 'check') {
-    const matchedWarnings = await matchWarningFailuresInLogs(result);
-    if (matchedWarnings.length > 0) {
-      const rerunStdoutPath = await Deno.makeTempFile({ suffix: '.moon-check-rerun.out.log' });
-      const rerunStderrPath = await Deno.makeTempFile({ suffix: '.moon-check-rerun.err.log' });
-      try {
-        const rerun = await runMoon(
-          workdir,
-          getMoonArgs('check', backend, channel, false),
-          rerunStdoutPath,
-          rerunStderrPath,
-        );
-        if (rerun.success) {
-          return { status: Status.WarningFailure, matchedWarnings };
-        }
-      } catch (_error) {
-        // Treat rerun failures conservatively as real check failures.
-      } finally {
-        await Deno.remove(rerunStdoutPath).catch(() => {});
-        await Deno.remove(rerunStderrPath).catch(() => {});
-      }
+    const matchedWarnings = await probeWarningOnlyFailure(workdir, backend, channel, result);
+    if (matchedWarnings !== null) {
+      return { status: Status.WarningFailure, matchedWarnings };
     }
   }
 
@@ -160,7 +174,7 @@ export async function statMooncake(
       paths.stdout_path,
       paths.stderr_path,
     );
-    const classified = await classifyStatus(workdir, backend, command, channel, result);
+    const classified = await classifyCommandResult(workdir, backend, command, channel, result);
     if (classified.status === Status.WarningFailure) {
       return {
         status: Status.WarningFailure,
