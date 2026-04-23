@@ -40,3 +40,23 @@ export async function writeLogFiles(
   await Deno.writeTextFile(stderrPath, stderr).catch((e) => console.error('Failed to write stderr log', stderrPath, e));
   return { stdout_path: stdoutPath, stderr_path: stderrPath };
 }
+
+export async function prepareLogFiles(
+  slug: string,
+  dir: string,
+  command: MoonCommand,
+  backend: Backend,
+): Promise<{ stdout_path: string; stderr_path: string }> {
+  try {
+    await Deno.mkdir(join(dir, 'logs'), { recursive: true });
+  } catch (e) {
+    if (!(e instanceof Deno.errors.AlreadyExists)) {
+      throw e;
+    }
+  }
+
+  return {
+    stdout_path: join(dir, 'logs', `${slug}-${backend}-${command}.out.log`),
+    stderr_path: join(dir, 'logs', `${slug}-${backend}-${command}.err.log`),
+  };
+}

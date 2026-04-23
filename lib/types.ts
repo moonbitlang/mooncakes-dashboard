@@ -171,8 +171,8 @@ export type BuildResult = {
 
 export interface CommandOutput {
   duration: number;
-  stdout: string;
-  stderr: string;
+  stdout_path: string;
+  stderr_path: string;
   success: boolean;
 }
 
