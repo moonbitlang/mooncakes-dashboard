@@ -93,6 +93,7 @@ export interface GitModule extends MoonBitModule {
 export type Mooncake = MooncakesModule | GitModule;
 
 export type MoonCommand = 'check' | 'build' | 'test';
+export type Channel = 'stable' | 'nightly' | 'pre-release';
 
 export interface ExecuteResult {
   status: Status;
@@ -169,7 +170,7 @@ export type BuildResult = {
   error?: string;
 };
 
-export interface CommandOutput {
+export interface MoonExecution {
   duration: number;
   stdout_path: string;
   stderr_path: string;

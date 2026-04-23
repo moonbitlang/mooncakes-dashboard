@@ -1,6 +1,6 @@
 // 工具函数模块，对应 Rust 版本中的 util.rs
 
-import { CommandOutput } from './types.ts';
+import { MoonExecution } from './types.ts';
 
 const MOON_ENV = {
   MOON_IGNORE_PREBUILD: '1',
@@ -38,7 +38,7 @@ export async function runMoon(
   args: string[],
   stdoutPath: string,
   stderrPath: string,
-): Promise<CommandOutput> {
+): Promise<MoonExecution> {
   const start = Date.now();
   const signal = new AbortController();
   const timeout = setTimeout(() => {

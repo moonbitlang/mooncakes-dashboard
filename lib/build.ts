@@ -3,9 +3,10 @@ import {
   BuildConfigs,
   BuildResult,
   CBT,
-  CommandOutput,
+  Channel,
   Mooncake,
   MoonCommand,
+  MoonExecution,
   Result,
   SKIPPED,
   Status,
@@ -27,7 +28,7 @@ const WARNING_FAILURE_PATTERNS = [
 function getMoonArgs(
   command: MoonCommand,
   backend: Backend,
-  channel: 'stable' | 'nightly' | 'pre-release',
+  channel: Channel,
   includeWarnList = true,
 ): string[] {
   return [
@@ -86,10 +87,10 @@ async function matchWarningFailuresInFile(path: string): Promise<string[]> {
   return Array.from(matches);
 }
 
-async function matchWarningFailuresInLogs(result: CommandOutput): Promise<string[]> {
+async function matchWarningFailuresInLogs(execution: MoonExecution): Promise<string[]> {
   const matches = new Set<string>();
 
-  for (const path of [result.stdout_path, result.stderr_path]) {
+  for (const path of [execution.stdout_path, execution.stderr_path]) {
     for (const matched of await matchWarningFailuresInFile(path)) {
       matches.add(matched);
     }
@@ -98,13 +99,31 @@ async function matchWarningFailuresInLogs(result: CommandOutput): Promise<string
   return Array.from(matches);
 }
 
+async function executeLoggedMoonCommand(
+  workdir: string,
+  source: Mooncake,
+  dir: string,
+  command: MoonCommand,
+  backend: Backend,
+  channel: Channel,
+): Promise<MoonExecution> {
+  const slug = await makeLogSlug(source);
+  const paths = await prepareLogFiles(slug, dir, command, backend);
+  return await runMoon(
+    workdir,
+    getMoonArgs(command, backend, channel),
+    paths.stdout_path,
+    paths.stderr_path,
+  );
+}
+
 async function probeWarningOnlyFailure(
   workdir: string,
   backend: Backend,
-  channel: 'stable' | 'nightly' | 'pre-release',
-  result: CommandOutput,
+  channel: Channel,
+  execution: MoonExecution,
 ): Promise<string[] | null> {
-  const matchedWarnings = await matchWarningFailuresInLogs(result);
+  const matchedWarnings = await matchWarningFailuresInLogs(execution);
   if (matchedWarnings.length === 0) {
     return null;
   }
@@ -129,31 +148,80 @@ async function probeWarningOnlyFailure(
   }
 }
 
-async function classifyCommandResult(
+async function classifyCheckExecution(
   workdir: string,
   backend: Backend,
-  command: MoonCommand,
-  channel: 'stable' | 'nightly' | 'pre-release',
-  result: CommandOutput,
+  channel: Channel,
+  execution: MoonExecution,
 ): Promise<
   { status: Status.Success } | { status: Status.Failure } | {
     status: Status.WarningFailure;
     matchedWarnings: string[];
   }
 > {
-  if (result.success) {
+  if (execution.success) {
     return { status: Status.Success };
   }
 
-  const usesWarnList = channel === 'nightly' || channel === 'pre-release';
-  if (usesWarnList && command === 'check') {
-    const matchedWarnings = await probeWarningOnlyFailure(workdir, backend, channel, result);
-    if (matchedWarnings !== null) {
-      return { status: Status.WarningFailure, matchedWarnings };
-    }
+  if (channel === 'stable') {
+    return { status: Status.Failure };
+  }
+
+  const matchedWarnings = await probeWarningOnlyFailure(workdir, backend, channel, execution);
+  if (matchedWarnings !== null) {
+    return { status: Status.WarningFailure, matchedWarnings };
   }
 
   return { status: Status.Failure };
+}
+
+function classifyExecution(execution: MoonExecution): { status: Status.Success } | { status: Status.Failure } {
+  if (execution.success) {
+    return { status: Status.Success };
+  }
+
+  return { status: Status.Failure };
+}
+
+function toResult(
+  startTime: string,
+  execution: MoonExecution,
+  classified: { status: Status.Success } | { status: Status.Failure } | {
+    status: Status.WarningFailure;
+    matchedWarnings: string[];
+  },
+): Result {
+  if (classified.status === Status.WarningFailure) {
+    return {
+      status: Status.WarningFailure,
+      start_time: startTime,
+      elapsed: execution.duration,
+      stdout_path: execution.stdout_path,
+      stderr_path: execution.stderr_path,
+      matchedWarnings: classified.matchedWarnings,
+    };
+  }
+
+  return {
+    status: classified.status,
+    start_time: startTime,
+    elapsed: execution.duration,
+    stdout_path: execution.stdout_path,
+    stderr_path: execution.stderr_path,
+  };
+}
+
+async function writeExecutionFailure(
+  source: Mooncake,
+  dir: string,
+  command: MoonCommand,
+  backend: Backend,
+  error: unknown,
+): Promise<{ stdout_path: string; stderr_path: string }> {
+  const slug = await makeLogSlug(source);
+  const paths = await prepareLogFiles(slug, dir, command, backend);
+  await writeLogFiles(slug, dir, command, backend, '', error instanceof Error ? error.message : String(error));
+  return paths;
 }
 
 export async function statMooncake(
@@ -162,39 +230,18 @@ export async function statMooncake(
   command: MoonCommand,
   backend: Backend,
   dir: string,
-  channel: 'stable' | 'nightly' | 'pre-release',
+  channel: Channel,
 ): Promise<Result> {
   const startTime = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
-  const slug = await makeLogSlug(source);
-  const paths = await prepareLogFiles(slug, dir, command, backend);
   try {
-    const result = await runMoon(
-      workdir,
-      getMoonArgs(command, backend, channel),
-      paths.stdout_path,
-      paths.stderr_path,
-    );
-    const classified = await classifyCommandResult(workdir, backend, command, channel, result);
-    if (classified.status === Status.WarningFailure) {
-      return {
-        status: Status.WarningFailure,
-        start_time: startTime,
-        elapsed: result.duration,
-        stdout_path: paths.stdout_path,
-        stderr_path: paths.stderr_path,
-        matchedWarnings: classified.matchedWarnings,
-      };
-    }
-    return {
-      status: classified.status,
-      start_time: startTime,
-      elapsed: result.duration,
-      stdout_path: paths.stdout_path,
-      stderr_path: paths.stderr_path,
-    };
+    const execution = await executeLoggedMoonCommand(workdir, source, dir, command, backend, channel);
+    const classified = command === 'check'
+      ? await classifyCheckExecution(workdir, backend, channel, execution)
+      : classifyExecution(execution);
+    return toResult(startTime, execution, classified);
   } catch (error) {
     console.error(`RUN moon ${command} for ${JSON.stringify(source)}`, error);
-    await writeLogFiles(slug, dir, command, backend, '', error instanceof Error ? error.message : String(error));
+    const paths = await writeExecutionFailure(source, dir, command, backend, error);
     return {
       status: Status.Failure,
       start_time: startTime,
@@ -211,7 +258,7 @@ export async function runMatrix(
   runningOs: string[],
   runningBackend: Backend[],
   dir: string,
-  channel: 'stable' | 'nightly' | 'pre-release',
+  channel: Channel,
 ): Promise<CBT> {
   const currentOs = Deno.build.os;
   let shouldRun = false;
@@ -258,7 +305,7 @@ export async function build(
   source: Mooncake,
   dir: string,
   build_config: BuildConfigs,
-  channel: 'stable' | 'nightly' | 'pre-release',
+  channel: Channel,
 ): Promise<BuildResult> {
   const tmp = await Deno.makeTempDir();
 
