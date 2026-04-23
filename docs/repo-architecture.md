@@ -48,7 +48,7 @@ Each `data.jsonl` file:
 
 - `source`: mooncakes package or git source descriptor
 - `cbt`: nested map `check/build/test -> backend -> Result`
-- `error`: source-level failure (download/clone/install) when present
+- `error`: source-level failure (download/clone/initial build setup) when present
 
 `Result` currently represents one command/backend execution:
 

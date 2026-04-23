@@ -252,7 +252,6 @@ export async function build(
     if (source.type === 'git') {
       try {
         await gitCloneTo(source.url, tmp, source.rev, tmp);
-        await runMoon(tmp, ['install'], join(tmp, 'moon-install.out.log'), join(tmp, 'moon-install.err.log'));
         const config = JSON.parse(await Deno.readTextFile(join(tmp, 'moon.mod.json')));
         const name = config.name as string;
         const version = config.version as string;
@@ -273,7 +272,6 @@ export async function build(
     } else {
       try {
         await downloadTo(source.name, source.version, tmp);
-        await runMoon(tmp, ['install'], join(tmp, 'moon-install.out.log'), join(tmp, 'moon-install.err.log'));
         const buildConfig = findBuildConfig(source.name, source.version, build_config.configs);
         const cbt = await runMatrix(
           tmp,
